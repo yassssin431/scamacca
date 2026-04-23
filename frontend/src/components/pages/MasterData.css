@@ -1,0 +1,149 @@
+.master-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+/* Header */
+.master-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.master-header h2 {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+/* Tabs */
+.master-tabs {
+  display: flex;
+  gap: 20px;
+  border-bottom: 1px solid #ddd;
+}
+
+.master-tabs button {
+  border: none;
+  background: none;
+  padding: 10px;
+  cursor: pointer;
+}
+
+.master-tabs .active {
+  border-bottom: 2px solid black;
+  font-weight: bold;
+}
+
+/* Filters */
+.filters {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+}
+
+.filters select {
+  padding: 6px;
+}
+
+/* Table */
+.table-card {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+/* Status colors */
+.low {
+  color: green;
+}
+
+.high {
+  color: red;
+}
+
+.active {
+  color: green;
+}
+
+.inactive {
+  color: gray;
+}
+
+/* Bottom */
+.master-bottom {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.card.dark {
+  background: #041627;
+  color: white;
+}
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+.modal select {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+table button {
+  padding: 6px 10px;
+  margin-right: 6px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #e5e7eb;
+}
+
+table button:hover {
+  opacity: 0.9;
+}

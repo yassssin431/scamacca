@@ -1,0 +1,224 @@
+/* =========================
+   BUTTONS
+========================= */
+.ui-btn,
+table button,
+.modal-actions button {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ui-btn-primary,
+.modal-actions button:first-child {
+  background: linear-gradient(to right, #041627, #1a2b3c);
+  color: white;
+}
+
+.ui-btn-primary:hover,
+.modal-actions button:first-child:hover {
+  opacity: 0.95;
+  transform: translateY(-1px);
+}
+
+.ui-btn-secondary,
+.modal-actions button:last-child {
+  background: white;
+  color: #041627;
+  border: 1px solid rgba(116, 119, 125, 0.25);
+}
+
+.ui-btn-secondary:hover,
+.modal-actions button:last-child:hover {
+  background: #f8fafc;
+}
+
+table button {
+  background: #eef2f6;
+  color: #041627;
+  margin-right: 8px;
+  padding: 8px 12px;
+}
+
+table button:hover {
+  background: #e2e8f0;
+}
+
+table button:last-child {
+  margin-right: 0;
+}
+
+/* =========================
+   TABLES
+========================= */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+table th,
+table td {
+  padding: 14px 12px;
+  text-align: left;
+  border-bottom: 1px solid #eceef0;
+  vertical-align: middle;
+}
+
+table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+table td {
+  font-size: 14px;
+  color: #334155;
+}
+
+table tbody tr:hover {
+  background: rgba(242, 244, 246, 0.65);
+}
+
+/* =========================
+   MODALS
+========================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 22, 39, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 999;
+}
+
+.modal {
+  width: 100%;
+  max-width: 560px;
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(4, 22, 39, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.modal h3 {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 800;
+  color: #041627;
+  font-family: 'Manrope', sans-serif;
+}
+
+.modal input,
+.modal select,
+.modal textarea {
+  width: 100%;
+  border: 1px solid #dbe2ea;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #191c1e;
+  outline: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.modal input:focus,
+.modal select:focus,
+.modal textarea:focus {
+  border-color: #94a3b8;
+  background: white;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+/* =========================
+   EMPTY STATES
+========================= */
+.ui-empty-state {
+  padding: 28px 18px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.ui-empty-state h4 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #041627;
+}
+
+.ui-empty-state p {
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* =========================
+   PAGE RHYTHM HELPERS
+========================= */
+.ui-section-card {
+  background: white;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(25, 28, 30, 0.06);
+}
+
+.ui-section-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.ui-section-top h4 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #041627;
+  font-family: 'Manrope', sans-serif;
+}
+
+.ui-section-top p {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+@media (max-width: 768px) {
+  .modal {
+    padding: 20px;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-actions button {
+    width: 100%;
+  }
+
+  table {
+    display: block;
+    overflow-x: auto;
+  }
+}

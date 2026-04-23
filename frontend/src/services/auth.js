@@ -1,0 +1,36 @@
+export const saveToken = (token) => {
+  localStorage.setItem('token', token)
+}
+
+export const getToken = () => {
+  return localStorage.getItem('token')
+}
+
+export const removeToken = () => {
+  localStorage.removeItem('token')
+}
+
+export const isAuthenticated = () => {
+  return !!getToken()
+}
+
+export const parseJwt = (token) => {
+  try {
+    const base64Payload = token.split('.')[1]
+    const payload = atob(base64Payload)
+    return JSON.parse(payload)
+  } catch {
+    return null
+  }
+}
+
+export const getCurrentUser = () => {
+  const token = getToken()
+  if (!token) return null
+  return parseJwt(token)
+}
+
+export const getCurrentUserRole = () => {
+  const user = getCurrentUser()
+  return user?.role || null
+}

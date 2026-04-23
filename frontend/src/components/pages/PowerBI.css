@@ -1,0 +1,393 @@
+.powerbi-page {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.powerbi-header h2 {
+  font-size: 30px;
+  font-weight: 800;
+  color: #041627;
+  font-family: 'Manrope', sans-serif;
+  margin-bottom: 6px;
+}
+
+.powerbi-header p {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.powerbi-filters {
+  background: white;
+  border-radius: 14px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 20px rgba(25, 28, 30, 0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.filter-box span {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #64748b;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.filter-box strong {
+  color: #041627;
+  font-size: 14px;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.primary-btn,
+.secondary-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primary-btn {
+  background: linear-gradient(to right, #041627, #1a2b3c);
+  color: white;
+}
+
+.secondary-btn {
+  background: white;
+  color: #041627;
+  border: 1px solid rgba(116, 119, 125, 0.25);
+}
+
+.powerbi-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.pbi-card,
+.chart-card,
+.profit-card,
+.expense-card,
+.cashflow-card,
+.embed-card {
+  background: white;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(25, 28, 30, 0.06);
+}
+
+.pbi-card p {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.pbi-card h3 {
+  font-size: 28px;
+  font-weight: 800;
+  color: #041627;
+  font-family: 'Manrope', sans-serif;
+  margin-bottom: 10px;
+}
+
+.positive {
+  color: #006c4a;
+  font-weight: 700;
+}
+
+.negative {
+  color: #ba1a1a;
+  font-weight: 700;
+}
+
+.powerbi-main-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.card-top.simple {
+  align-items: center;
+}
+
+.card-top h4,
+.profit-card h4,
+.expense-card h4,
+.cashflow-card h4,
+.embed-card h4 {
+  font-size: 22px;
+  font-weight: 800;
+  color: #041627;
+  font-family: 'Manrope', sans-serif;
+}
+
+.card-top p,
+.profit-card p,
+.embed-card p {
+  color: #64748b;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.toggle-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.toggle-buttons button {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  background: #eceef0;
+  color: #475569;
+}
+
+.toggle-buttons button.active {
+  background: #041627;
+  color: white;
+}
+
+.big-line-chart {
+  height: 260px;
+  border-bottom: 1px solid rgba(196, 198, 205, 0.35);
+  position: relative;
+  margin-bottom: 18px;
+}
+
+.line-shape {
+  position: absolute;
+  inset: 20px 10px 30px 10px;
+  background: linear-gradient(
+    135deg,
+    transparent 15%,
+    rgba(0, 108, 74, 0.15) 15%,
+    rgba(0, 108, 74, 0.15) 35%,
+    transparent 35%,
+    transparent 45%,
+    rgba(0, 108, 74, 0.2) 45%,
+    rgba(0, 108, 74, 0.2) 65%,
+    transparent 65%
+  );
+  border-radius: 12px;
+}
+
+.chart-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+}
+
+.profit-list {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.profit-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #041627;
+}
+
+.bar-bg {
+  width: 100%;
+  height: 10px;
+  background: #eceef0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.bar-fill.green { background: #006c4a; }
+.bar-fill.navy { background: #1a2b3c; }
+.w82 { width: 82%; }
+.w75 { width: 75%; }
+.w58 { width: 58%; }
+.w48 { width: 48%; }
+
+.powerbi-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.expense-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.donut-placeholder {
+  width: 170px;
+  height: 170px;
+  border-radius: 999px;
+  background: conic-gradient(#041627 0 55%, #006c4a 55% 85%, #ba1a1a 85% 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-center {
+  width: 100px;
+  height: 100px;
+  border-radius: 999px;
+  background: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donut-center span {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.donut-center strong {
+  color: #041627;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.expense-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.expense-legend > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.legend-dot.navy { background: #041627; }
+.legend-dot.green { background: #006c4a; }
+.legend-dot.red { background: #ba1a1a; }
+
+.expense-legend strong {
+  display: block;
+  color: #041627;
+  font-size: 13px;
+}
+
+.expense-legend small {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.cashflow-bars {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 14px;
+  height: 240px;
+  margin-top: 24px;
+}
+
+.cash-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.cash-bar {
+  width: 100%;
+  border-radius: 12px 12px 0 0;
+  background: #1a2b3c;
+}
+
+.cash-bar.q1 { height: 120px; opacity: 0.25; }
+.cash-bar.q2 { height: 145px; opacity: 0.35; }
+.cash-bar.q3 { height: 180px; opacity: 1; }
+.cash-bar.q4 { height: 205px; }
+.cash-bar.q5 { height: 225px; }
+
+.cash-bar.predicted {
+  background: rgba(0, 108, 74, 0.4);
+  border: 2px dashed #006c4a;
+}
+
+.cash-col span {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.embed-placeholder {
+  margin-top: 22px;
+  height: 320px;
+  border: 2px dashed rgba(116, 119, 125, 0.35);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f2f4f6;
+}
+
+.embed-placeholder span {
+  color: #64748b;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+@media (max-width: 1100px) {
+  .powerbi-kpis,
+  .powerbi-main-grid,
+  .powerbi-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .expense-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
