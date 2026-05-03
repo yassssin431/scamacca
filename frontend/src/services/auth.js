@@ -32,5 +32,12 @@ export const getCurrentUser = () => {
 
 export const getCurrentUserRole = () => {
   const user = getCurrentUser()
-  return user?.role || null
+
+  return (
+    user?.role ||
+    user?.Role?.name ||
+    user?.roleName ||
+    user?.RoleName ||
+    null
+  )
 }

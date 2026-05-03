@@ -90,9 +90,9 @@ function App() {
         <Route
           path="/settings"
           element={
-            <RoleProtectedRoute allowedRoles={['Admin']}>
-              <Settings />
-            </RoleProtectedRoute>
+            <RoleProtectedRoute allowedRoles={['Admin', 'Manager', 'Finance']}>
+  <Settings />
+</RoleProtectedRoute>
           }
         />
       </Route>

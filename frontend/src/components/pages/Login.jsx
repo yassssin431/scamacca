@@ -7,37 +7,31 @@ import './Login.css'
 function Login() {
   const navigate = useNavigate()
 
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  })
-
+  const [formData, setFormData] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    })
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+    if (error) setError('')
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')
+
+    if (!formData.email || !formData.password) {
+      setError('Please enter your email and password.')
+      return
+    }
+
     setLoading(true)
 
     try {
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       })
 
       const data = await response.json()
@@ -58,19 +52,6 @@ function Login() {
   return (
     <div className="login-screen">
       <div className="security-pattern"></div>
-      <div className="login-glow login-glow-top"></div>
-      <div className="login-glow login-glow-bottom"></div>
-
-      <div className="side-illustration" aria-hidden="true">
-        <div className="illustration-stack">
-          <div className="illus-box big"></div>
-          <div className="illus-box small"></div>
-          <div className="illus-box small right"></div>
-          <div className="illus-box medium"></div>
-          <div className="illus-box thin right"></div>
-          <div className="illus-box tall"></div>
-        </div>
-      </div>
 
       <main className="login-shell">
         <div className="login-branding">
@@ -79,30 +60,26 @@ function Login() {
           </div>
 
           <h1 className="login-brand-title">Tradrly</h1>
-          <p className="login-brand-subtitle">
-            Financial Decision Support System
-          </p>
 
           <div className="login-brand-pills">
-            <span>ETL Ready</span>
-            <span>Data Warehouse</span>
-            <span>Power BI Layer</span>
+            <span>Financial Monitoring</span>
+            <span>BI Workspace</span>
+            <span>Secure Access</span>
           </div>
         </div>
 
         <div className="login-card">
           <div className="login-card-header">
+            <span className="login-card-kicker">Welcome back</span>
             <h2>Secure Sign In</h2>
-            <p>
-              Access the operational, analytical and BI workspace of the platform.
-            </p>
+            <p>Access your financial decision support workspace.</p>
           </div>
 
           <form className="login-form" onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="email">Email</label>
-              <div className="input-wrapper">
-                <span className="material-symbols-outlined input-icon">mail</span>
+
+              <div className="input-wrapper input-wrapper-icon-right">
                 <input
                   id="email"
                   name="email"
@@ -112,17 +89,17 @@ function Login() {
                   onChange={handleChange}
                   autoComplete="email"
                 />
+                <span className="material-symbols-outlined input-icon">mail</span>
               </div>
             </div>
 
             <div className="form-group">
               <div className="form-label-row">
                 <label htmlFor="password">Password</label>
-                <span className="forgot-link disabled-link">Protected Access</span>
+                <span className="secure-note">Protected access</span>
               </div>
 
               <div className="input-wrapper input-wrapper-password">
-                <span className="material-symbols-outlined input-icon">lock</span>
                 <input
                   id="password"
                   name="password"
@@ -133,10 +110,15 @@ function Login() {
                   autoComplete="current-password"
                 />
 
+                <span className="material-symbols-outlined input-icon password-lock">
+                  lock
+                </span>
+
                 <button
                   type="button"
                   className="password-toggle"
                   onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label="Toggle password visibility"
                 >
                   <span className="material-symbols-outlined">
                     {showPassword ? 'visibility_off' : 'visibility'}
@@ -151,44 +133,19 @@ function Login() {
               <div className="security-bar">
                 <div className="security-bar-fill"></div>
               </div>
-              <span className="security-label">Encrypted Session</span>
+              <span className="security-label">Encrypted session</span>
             </div>
 
             <button type="submit" className="login-btn" disabled={loading}>
-              <span>{loading ? 'Signing In...' : 'Sign In'}</span>
+              <span>{loading ? 'Signing in...' : 'Sign In'}</span>
               <span className="material-symbols-outlined">arrow_forward</span>
             </button>
           </form>
-
-          <div className="login-secondary">
-            <div className="secondary-link">
-              <span>Authorized roles</span>
-              <strong>Admin • Manager • Finance</strong>
-            </div>
-          </div>
         </div>
 
         <div className="login-footer">
-          <div className="footer-badges">
-            <div className="footer-badge">
-              <span className="material-symbols-outlined">shield_lock</span>
-              <span>JWT Security</span>
-            </div>
-            <div className="footer-badge">
-              <span className="material-symbols-outlined">database</span>
-              <span>PostgreSQL</span>
-            </div>
-            <div className="footer-badge">
-              <span className="material-symbols-outlined">bar_chart</span>
-              <span>BI Ready</span>
-            </div>
+            <span>© 2026 Tradrly</span>
           </div>
-
-          <p className="footer-text">
-            Centralized financial monitoring, transaction management, AI preparation
-            and future Power BI integration in a desktop-oriented architecture.
-          </p>
-        </div>
       </main>
     </div>
   )

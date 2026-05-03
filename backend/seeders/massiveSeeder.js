@@ -9,6 +9,8 @@ const {
   Expense,
   Employee,
   Category,
+  Fournisseur,
+  Salary,
 } = require("../models");
 async function generateClients() {
 
@@ -107,8 +109,52 @@ async function generateEmployees(){
 
   await Employee.bulkCreate(employees);
 
-  
+
   console.log("50 employees generated");
+}
+async function generateSalaries(){
+
+  console.log("Generating salaries...");
+
+  const employees =
+    await Employee.findAll();
+
+  const salaries = [];
+
+  for(let i=0;i<5000;i++){
+
+    const employee =
+      faker.helpers.arrayElement(employees);
+
+    salaries.push({
+
+      month: faker.date.month(),
+
+      year: faker.date.past().getFullYear(),
+
+      amount_paid:
+        faker.number.int({
+          min:2000,
+          max:9000
+        }),
+
+      payment_date:
+        faker.date.past(),
+
+      EmployeeId:
+        employee.id,
+
+      createdAt:new Date(),
+      updatedAt:new Date()
+
+    });
+
+  }
+
+  await Salary.bulkCreate(salaries);
+
+  console.log("5000 salaries generated");
+
 }
 async function generateProjects(){
 
@@ -211,27 +257,40 @@ async function generateExpenses(){
 
   const projects = await Project.findAll();
   const categories = await Category.findAll();
+  const fournisseurs = await Fournisseur.findAll();
 
   const expenses=[];
 
   for(let i=0;i<20000;i++){
 
-    const project = faker.helpers.arrayElement(projects);
-    const category = faker.helpers.arrayElement(categories);
+    const project =
+      faker.helpers.arrayElement(projects);
+
+    const category =
+      faker.helpers.arrayElement(categories);
+
+    const fournisseur =
+      faker.helpers.arrayElement(fournisseurs);
 
     expenses.push({
 
       reference:`EXP-${100000+i}`,
 
-      amount:faker.number.int({min:50,max:8000}),
+      amount:faker.number.int({
+        min:50,
+        max:8000
+      }),
 
-      description:faker.finance.transactionDescription(),
+      description:
+        faker.finance.transactionDescription(),
 
       date:faker.date.past(),
 
       ProjectId:project.id,
 
-      CategoryId:category ? category.id : null,
+      CategoryId:category.id,
+
+      FournisseurId:fournisseur.id,
 
       createdAt:new Date(),
       updatedAt:new Date()
@@ -245,6 +304,42 @@ async function generateExpenses(){
   console.log("20,000 expenses generated");
 
 }
+async function generateFournisseurs(){
+
+  console.log("Generating fournisseurs...");
+
+  const fournisseurs = [];
+
+  for(let i=0;i<40;i++){
+
+    const firstName = faker.person.firstName();
+    const lastName = faker.person.lastName();
+
+    fournisseurs.push({
+
+      name:`${firstName} ${lastName}`,
+
+      email:`${firstName}.${lastName}${i}@supplier.com`.toLowerCase(),
+
+      phone:faker.phone.number(),
+
+      address:faker.location.streetAddress(),
+
+      contact_person:`${firstName} ${lastName}`,
+
+      createdAt:new Date(),
+      updatedAt:new Date()
+
+    });
+
+  }
+
+  await Fournisseur.bulkCreate(fournisseurs);
+
+  console.log("40 fournisseurs generated");
+
+}
+
 async function runSeeder(){
 
   try{
@@ -255,9 +350,12 @@ async function runSeeder(){
 
     await generateClients();
     await generateEmployees();
+    await generateSalaries();
+    await generateFournisseurs();
     await generateProjects();
     await generateInvoices();
     await generateExpenses();
+    
 
     console.log("Massive data generation completed");
 

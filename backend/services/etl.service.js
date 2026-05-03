@@ -171,61 +171,116 @@ exports.loadDimTime = async () => {
 
   await DimTime.destroy({ where: {} });
 
+  console.log("Loading DimTime...");
+
+  /* ================= GET ALL DATES ================= */
+
   const invoices = await Invoice.findAll();
+  const expenses = await Expense.findAll();
+  const salaries =
+    await sequelize.models.Salary.findAll();
+
+  const datesSet = new Set();
+
+
+  /* ========= INVOICE DATES ========= */
 
   for (let inv of invoices) {
 
-    if (!inv.issue_date) continue;
+    if (inv.issue_date) {
 
-    const d = new Date(inv.issue_date);
+      datesSet.add(
+        new Date(inv.issue_date)
+          .toISOString()
+          .split("T")[0]
+      );
 
-    await DimTime.findOrCreate({
+    }
 
-      where: {
-        date: d,
-      },
+  }
 
-      defaults: {
 
-        date: d,
+  /* ========= EXPENSE DATES ========= */
 
-        day: d.getDate(),
+  for (let exp of expenses) {
 
-        month: d.getMonth() + 1,
+    if (exp.date) {
 
-        month_name:
-          d.toLocaleString(
-            "default",
-            { month: "long" }
-          ),
+      datesSet.add(
+        new Date(exp.date)
+          .toISOString()
+          .split("T")[0]
+      );
 
-        quarter:
-          Math.ceil(
-            (d.getMonth() + 1) / 3
-          ),
+    }
 
-        year:
-          d.getFullYear(),
+  }
 
-        fiscal_year:
-          d.getFullYear(),
 
-        fiscal_quarter:
-          Math.ceil(
-            (d.getMonth() + 1) / 3
-          ),
+  /* ========= SALARY DATES ========= */
 
-        is_weekend:
-          d.getDay() === 0 ||
-          d.getDay() === 6,
+  for (let sal of salaries) {
 
-      },
+    if (sal.payment_date) {
+
+      datesSet.add(
+        new Date(sal.payment_date)
+          .toISOString()
+          .split("T")[0]
+      );
+
+    }
+
+  }
+
+
+  /* ========= INSERT DIM TIME ========= */
+
+  for (let dateStr of datesSet) {
+
+    const d = new Date(dateStr);
+
+    await DimTime.create({
+
+      date: d,
+
+      day: d.getDate(),
+
+      month: d.getMonth() + 1,
+
+      month_name:
+        d.toLocaleString(
+          "default",
+          { month: "long" }
+        ),
+
+      quarter:
+        Math.ceil(
+          (d.getMonth() + 1) / 3
+        ),
+
+      year:
+        d.getFullYear(),
+
+      fiscal_year:
+        d.getFullYear(),
+
+      fiscal_quarter:
+        Math.ceil(
+          (d.getMonth() + 1) / 3
+        ),
+
+      is_weekend:
+        d.getDay() === 0 ||
+        d.getDay() === 6,
 
     });
 
   }
 
-  console.log("DimTime Loaded");
+  console.log(
+    "DimTime Loaded with ALL dates"
+  );
 
 };
 
@@ -245,8 +300,18 @@ exports.loadFactRevenue = async () => {
 
     if (!inv.issue_date) continue;
 
+    const dateOnly =
+      new Date(inv.issue_date)
+        .toISOString()
+        .split("T")[0];
+
     const time = await DimTime.findOne({
-      where: { date: inv.issue_date }
+
+      where: sequelize.where(
+        sequelize.fn("DATE", sequelize.col("date")),
+        dateOnly
+      )
+
     });
 
     if (!time) continue;
@@ -278,41 +343,41 @@ exports.loadFactRevenue = async () => {
 /* ===================================================== */
 
 exports.loadFactExpense = async () => {
-
   await FactExpense.destroy({ where: {} });
 
   const expenses = await Expense.findAll();
+  const times = await DimTime.findAll();
 
-  for (let exp of expenses) {
+  const timeMap = new Map();
 
-    if (!exp.date) continue;
-
-    const time = await DimTime.findOne({
-      where: { date: exp.date }
-    });
-
-    if (!time) continue;
-
-    await FactExpense.create({
-
-      time_id: time.time_id,
-
-      project_id: exp.ProjectId,
-
-      category_id: exp.CategoryId,
-
-      fournisseur_id: exp.FournisseurId,
-
-      amount: exp.amount,
-
-    });
-
+  for (let t of times) {
+    const key = new Date(t.date).toISOString().split("T")[0];
+    timeMap.set(key, t.time_id);
   }
 
-  console.log("FactExpense Loaded");
+  const rows = [];
 
+  for (let exp of expenses) {
+    if (!exp.date) continue;
+
+    const dateOnly = new Date(exp.date).toISOString().split("T")[0];
+    const timeId = timeMap.get(dateOnly);
+
+    if (!timeId) continue;
+
+    rows.push({
+      time_id: timeId,
+      project_id: exp.ProjectId,
+      category_id: exp.CategoryId,
+      fournisseur_id: exp.FournisseurId,
+      amount: exp.amount,
+    });
+  }
+
+  await FactExpense.bulkCreate(rows);
+
+  console.log(`FactExpense Loaded: ${rows.length}`);
 };
-
 
 
 /* ===================================================== */
@@ -320,34 +385,36 @@ exports.loadFactExpense = async () => {
 /* ===================================================== */
 
 exports.loadFactSalary = async () => {
-
   await FactSalary.destroy({ where: {} });
 
-  const salaries =
-    await sequelize.models.Salary.findAll();
+  const salaries = await sequelize.models.Salary.findAll();
+  const times = await DimTime.findAll();
 
-  for (let sal of salaries) {
+  const timeMap = new Map();
 
-    if (!sal.payment_date) continue;
-
-    const time = await DimTime.findOne({
-      where: { date: sal.payment_date }
-    });
-
-    if (!time) continue;
-
-    await FactSalary.create({
-
-      time_id: time.time_id,
-
-      employee_id: sal.EmployeeId,
-
-      amount_paid: sal.amount_paid,
-
-    });
-
+  for (let t of times) {
+    const key = new Date(t.date).toISOString().split("T")[0];
+    timeMap.set(key, t.time_id);
   }
 
-  console.log("FactSalary Loaded");
+  const rows = [];
 
+  for (let sal of salaries) {
+    if (!sal.payment_date) continue;
+
+    const dateOnly = new Date(sal.payment_date).toISOString().split("T")[0];
+    const timeId = timeMap.get(dateOnly);
+
+    if (!timeId) continue;
+
+    rows.push({
+      time_id: timeId,
+      employee_id: sal.EmployeeId,
+      amount_paid: sal.amount_paid,
+    });
+  }
+
+  await FactSalary.bulkCreate(rows);
+
+  console.log(`FactSalary Loaded: ${rows.length}`);
 };

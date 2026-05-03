@@ -21,6 +21,8 @@ const devisRoutes = require("./routes/devis.routes");
 const fournisseurRoutes = require("./routes/fournisseur.routes");
 const salaryRoutes = require("./routes/salary.routes");
 
+const userRoutes = require("./routes/user.routes");
+
 const errorHandler = require("./middleware/error.middleware");
 
 
@@ -57,7 +59,7 @@ app.use("/api/budgets", budgetRoutes);
 app.use("/api/devis", devisRoutes);
 app.use("/api/fournisseurs", fournisseurRoutes);
 app.use("/api/salaries", salaryRoutes);
-
+app.use("/api/users", userRoutes);
 
 app.use("/api/etl", etlRoutes);
 

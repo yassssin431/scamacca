@@ -86,3 +86,140 @@ ul {
 .login-box h2 {
   margin-bottom: 10px;
 }
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 22, 39, 0.45);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  padding: 24px;
+}
+
+.modal {
+  width: min(520px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 18px;
+  padding: 26px;
+  box-shadow: 0 24px 70px rgba(4, 22, 39, 0.28);
+  animation: modalPop 0.18s ease-out;
+}
+
+.modal h3 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #041627;
+  font-family: 'Manrope', sans-serif;
+  margin-bottom: 20px;
+}
+
+.modal input,
+.modal select,
+.modal textarea {
+  width: 100%;
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px 14px;
+  font-size: 14px;
+  color: #041627;
+  outline: none;
+  margin-bottom: 12px;
+}
+
+.modal input:focus,
+.modal select:focus,
+.modal textarea:focus {
+  border-color: #041627;
+  box-shadow: 0 0 0 4px rgba(4, 22, 39, 0.06);
+  background: white;
+}
+
+.modal-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 18px;
+  border-top: 1px solid #e5eaf0;
+}
+
+.modal-actions button {
+  border: none;
+  border-radius: 12px;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.modal-actions button:first-child {
+  background: #041627;
+  color: white;
+}
+
+.modal-actions button:last-child {
+  background: white;
+  color: #041627;
+  border: 1px solid #dbe2ea;
+}
+
+@keyframes modalPop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+body.dark-mode {
+  background: #020617;
+  color: #e5e7eb;
+}
+
+body.dark-mode .main-content,
+body.dark-mode .settings-page {
+  background: #020617;
+}
+
+body.dark-mode .general-card,
+body.dark-mode .integration-card,
+body.dark-mode .alerts-card-settings,
+body.dark-mode .changes-card,
+body.dark-mode .settings-profile-card,
+body.dark-mode .settings-overview-card,
+body.dark-mode .table-card,
+body.dark-mode .um-table-card,
+body.dark-mode .um-stat-card {
+  background: #0f172a;
+  color: #e5e7eb;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode strong {
+  color: #f8fafc !important;
+}
+
+body.dark-mode p,
+body.dark-mode span,
+body.dark-mode label {
+  color: #94a3b8;
+}
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: #111827;
+  color: #e5e7eb;
+  border-color: #334155;
+}

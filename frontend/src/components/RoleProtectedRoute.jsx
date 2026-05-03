@@ -1,14 +1,14 @@
 import { Navigate } from 'react-router-dom'
 import { getCurrentUserRole, isAuthenticated } from '../services/auth'
 
-function RoleProtectedRoute({ children, allowedRoles = [] }) {
+function RoleProtectedRoute({ children, allowedRoles }) {
+  const role = getCurrentUserRole()
+
   if (!isAuthenticated()) {
     return <Navigate to="/" replace />
   }
 
-  const role = getCurrentUserRole()
-
-  if (!allowedRoles.includes(role)) {
+  if (!role || !allowedRoles.includes(role)) {
     return <Navigate to="/dashboard" replace />
   }
 

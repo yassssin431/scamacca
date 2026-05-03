@@ -6,6 +6,7 @@ import ConfirmModal from '../common/ConfirmModal'
 import Toast from '../common/Toast'
 import LoadingState from '../common/LoadingState'
 import EmptyState from '../common/EmptyState'
+import * as XLSX from 'xlsx'
 
 function FinancialTransactions() {
   const [activeTab, setActiveTab] = useState('revenues')
@@ -44,6 +45,21 @@ const showToastMessage = (message, type = 'success') => {
     setToast(null)
   }, 2500)
 }
+const [searchTerm, setSearchTerm] = useState('')
+const [statusFilter, setStatusFilter] = useState('all')
+const [dateFrom, setDateFrom] = useState('')
+const [dateTo, setDateTo] = useState('')
+const [minAmount, setMinAmount] = useState('')
+const [maxAmount, setMaxAmount] = useState('')
+const [sortField, setSortField] = useState('localOrder')
+const [sortOrder, setSortOrder] = useState('desc')
+const [importType, setImportType] = useState('invoices')
+const [importRows, setImportRows] = useState([])
+const [importFileName, setImportFileName] = useState('')
+const [importErrors, setImportErrors] = useState([])
+const [currentPage, setCurrentPage] = useState(1)
+const rowsPerPage = 10
+const [highlightedRow, setHighlightedRow] = useState(null)
 
   const [newInvoice, setNewInvoice] = useState({
     reference: '',
@@ -215,6 +231,22 @@ const [editInvoiceData, setEditInvoiceData] = useState({
     fetchClients()
   }, [])
 
+
+  const highlightRecord = (type, id) => {
+    if (!id) return
+
+    setHighlightedRow({ type, id })
+
+    setTimeout(() => {
+      setHighlightedRow(null)
+    }, 3500)
+  }
+
+  const handleTabChange = (tab) => {
+    setActiveTab(tab)
+    setCurrentPage(1)
+  }
+
   const totalRevenue = invoices.reduce((sum, item) => sum + Number(item.amount || 0), 0)
   const totalExpenses = expenses.reduce((sum, item) => sum + Number(item.amount || 0), 0)
   const totalSalaries = salaries.reduce((sum, item) => sum + Number(item.amount_paid || 0), 0)
@@ -245,7 +277,10 @@ const [editInvoiceData, setEditInvoiceData] = useState({
       const result = await response.json()
       if (!response.ok) throw new Error(result.message || 'Failed to create invoice')
 
-      setInvoices((prev) => [...prev, result.data])
+      const createdInvoice = { ...result.data, __localOrder: Date.now() }
+
+      setInvoices((prev) => [createdInvoice, ...prev])
+      highlightRecord('revenues', createdInvoice.id)
       setShowInvoiceModal(false)
 
       setNewInvoice({
@@ -288,7 +323,10 @@ const [editInvoiceData, setEditInvoiceData] = useState({
       const result = await response.json()
       if (!response.ok) throw new Error(result.message || 'Failed to create expense')
 
-      setExpenses((prev) => [...prev, result.data])
+      const createdExpense = { ...result.data, __localOrder: Date.now() }
+
+      setExpenses((prev) => [createdExpense, ...prev])
+      highlightRecord('expenses', createdExpense.id)
       setShowExpenseModal(false)
 
       setNewExpense({
@@ -329,7 +367,10 @@ const [editInvoiceData, setEditInvoiceData] = useState({
       const result = await response.json()
       if (!response.ok) throw new Error(result.message || 'Failed to create salary')
 
-      setSalaries((prev) => [...prev, result])
+      const createdSalary = { ...result.data, __localOrder: Date.now() }
+
+      setSalaries((prev) => [createdSalary, ...prev])
+      highlightRecord('salaries', createdSalary.id)
       setShowSalaryModal(false)
 
       setNewSalary({
@@ -576,104 +617,580 @@ const handleDeleteInvoice = async (id) => {
   }
 }
 
+  const getRecordDate = (item, type) => {
+    if (type === 'revenues') return item.issue_date || item.createdAt
+    if (type === 'expenses') return item.date || item.createdAt
+    return item.payment_date || item.createdAt
+  }
+
+  const getRecordAmount = (item, type) => {
+    if (type === 'salaries') return Number(item.amount_paid || 0)
+    return Number(item.amount || 0)
+  }
+
+  const getSearchableText = (item, type) => {
+    if (type === 'revenues') {
+      return [
+        item.reference,
+        item.status,
+        item.Client?.name,
+        item.Project?.name,
+        item.amount,
+        item.issue_date,
+        item.due_date,
+      ].join(' ')
+    }
+
+    if (type === 'expenses') {
+      return [
+        item.description,
+        item.reference,
+        item.Project?.name,
+        item.Category?.name,
+        item.Fournisseur?.name,
+        item.amount,
+        item.date,
+      ].join(' ')
+    }
+
+    return [
+      item.month,
+      item.year,
+      item.amount_paid,
+      item.payment_date,
+      item.EmployeeId,
+      item.Employee?.first_name,
+      item.Employee?.last_name,
+    ].join(' ')
+  }
+
+  const processData = (data, type) => {
+    return [...data]
+      .filter((item) => {
+        const searchMatch = getSearchableText(item, type)
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
+
+        const statusMatch =
+          type !== 'revenues' ||
+          statusFilter === 'all' ||
+          item.status === statusFilter
+
+        const recordDate = getRecordDate(item, type)
+        const recordTime = recordDate ? new Date(recordDate).getTime() : null
+
+        const fromMatch =
+          !dateFrom || (recordTime && recordTime >= new Date(dateFrom).getTime())
+
+        const toMatch =
+          !dateTo || (recordTime && recordTime <= new Date(dateTo).getTime())
+
+        const amount = getRecordAmount(item, type)
+
+        const minMatch = !minAmount || amount >= Number(minAmount)
+        const maxMatch = !maxAmount || amount <= Number(maxAmount)
+
+        return searchMatch && statusMatch && fromMatch && toMatch && minMatch && maxMatch
+      })
+      .sort((a, b) => {
+        const getValue = (item) => {
+          if (sortField === 'localOrder') {
+            return item.__localOrder || new Date(item.createdAt || getRecordDate(item, type) || 0).getTime()
+          }
+          if (sortField === 'displayDate') return getRecordDate(item, type)
+          if (sortField === 'displayAmount') return getRecordAmount(item, type)
+          if (sortField === 'client') return item.Client?.name || ''
+          if (sortField === 'project') return item.Project?.name || ''
+          if (sortField === 'category') return item.Category?.name || ''
+          if (sortField === 'supplier') return item.Fournisseur?.name || ''
+          if (sortField === 'employee') {
+            return `${item.Employee?.first_name || ''} ${item.Employee?.last_name || ''}`.trim()
+          }
+          return item[sortField] || ''
+        }
+
+        const valA = getValue(a)
+        const valB = getValue(b)
+
+        if (typeof valA === 'number' || typeof valB === 'number') {
+          return sortOrder === 'asc'
+            ? Number(valA) - Number(valB)
+            : Number(valB) - Number(valA)
+        }
+
+        return sortOrder === 'asc'
+          ? String(valA).localeCompare(String(valB))
+          : String(valB).localeCompare(String(valA))
+      })
+  }
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+      setCurrentPage(1)
+    } else {
+      setSortField(field)
+      setSortOrder('asc')
+      setCurrentPage(1)
+    }
+  }
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return '↕'
+    return sortOrder === 'asc' ? '↑' : '↓'
+  }
+
+  const resetTransactionFilters = () => {
+    setSearchTerm('')
+    setStatusFilter('all')
+    setDateFrom('')
+    setDateTo('')
+    setMinAmount('')
+    setMaxAmount('')
+    setSortField('localOrder')
+    setSortOrder('desc')
+    setCurrentPage(1)
+  }
+
+  const exportToExcel = (data, filename) => {
+    if (!data.length) {
+      showToastMessage('No data available to export', 'error')
+      return
+    }
+
+    const worksheet = XLSX.utils.json_to_sheet(data)
+    const workbook = XLSX.utils.book_new()
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1')
+    XLSX.writeFile(workbook, `${filename}.xlsx`)
+
+    showToastMessage('Excel file exported successfully')
+  }
+
+const requiredColumns = {
+  invoices: ['amount', 'issue_date', 'ClientId', 'ProjectId'],
+  expenses: ['amount', 'date', 'CategoryId', 'ProjectId'],
+  salaries: ['month', 'year', 'amount_paid', 'payment_date', 'EmployeeId'],
+}
+
+const parseCsv = (text) => {
+  const lines = text.trim().split('\n')
+  const headers = lines[0].split(',').map((h) => h.trim())
+
+  return lines.slice(1).map((line) => {
+const values = line.split(',').map((v) => v.trim())
+return headers.reduce((obj, header, index) => {
+  obj[header] = values[index] || ''
+  return obj
+}, {})
+  })
+}
+
+const validateImportRows = (rows, type) => {
+  const required = requiredColumns[type]
+  const errors = []
+
+  rows.forEach((row, index) => {
+required.forEach((col) => {
+  if (!row[col]) {
+    errors.push(`Row ${index + 1}: Missing ${col}`)
+  }
+})
+  })
+
+  return errors
+}
+
+const handleImportFile = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+
+  setImportFileName(file.name)
+  setImportRows([])
+  setImportErrors([])
+
+  const extension = file.name.split('.').pop().toLowerCase()
+  const reader = new FileReader()
+
+  reader.onload = (event) => {
+let rows = []
+
+if (extension === 'csv') {
+  rows = parseCsv(event.target.result)
+} else if (extension === 'xlsx' || extension === 'xls') {
+  const workbook = XLSX.read(event.target.result, { type: 'array' })
+  const sheetName = workbook.SheetNames[0]
+  const sheet = workbook.Sheets[sheetName]
+  rows = XLSX.utils.sheet_to_json(sheet)
+} else {
+  showToastMessage('Unsupported file format', 'error')
+  return
+}
+
+const errors = validateImportRows(rows, importType)
+
+setImportRows(rows)
+setImportErrors(errors)
+
+if (errors.length > 0) {
+  showToastMessage('File loaded with validation errors', 'error')
+} else {
+  showToastMessage('File loaded successfully')
+}
+  }
+
+  if (extension === 'csv') {
+reader.readAsText(file)
+  } else {
+reader.readAsArrayBuffer(file)
+  }
+}
+
+const handleImportData = async () => {
+  if (!importRows.length) {
+showToastMessage('Please upload a file first', 'error')
+return
+  }
+
+  if (importErrors.length > 0) {
+showToastMessage('Fix validation errors before importing', 'error')
+return
+  }
+
+  try {
+const endpoint =
+  importType === 'invoices'
+    ? 'invoices'
+    : importType === 'expenses'
+    ? 'expenses'
+    : 'salaries'
+
+const createdItems = []
+
+for (const row of importRows) {
+  const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(row),
+  })
+
+  const result = await response.json()
+
+  if (!response.ok) {
+    throw new Error(result.message || 'Import failed')
+  }
+
+  createdItems.push(result.data || result)
+}
+
+const importedItems = [...createdItems]
+  .reverse()
+  .map((item, index) => ({ ...item, __localOrder: Date.now() + index }))
+
+if (importType === 'invoices') {
+  setInvoices((prev) => [...importedItems, ...prev])
+  highlightRecord('revenues', importedItems[0]?.id)
+} else if (importType === 'expenses') {
+  setExpenses((prev) => [...importedItems, ...prev])
+  highlightRecord('expenses', importedItems[0]?.id)
+} else {
+  setSalaries((prev) => [...importedItems, ...prev])
+  highlightRecord('salaries', importedItems[0]?.id)
+}
+
+setImportRows([])
+setImportFileName('')
+setImportErrors([])
+showToastMessage('Data imported successfully')
+  } catch (err) {
+showToastMessage(err.message, 'error')
+  }
+}
+
+  const renderTableControls = (type, data, filename) => (
+    <div className="transaction-controls">
+      <div className="transaction-filter-field search">
+        <label>Search</label>
+        <input
+          type="text"
+          placeholder="Search records..."
+          value={searchTerm}
+          onChange={(e) => {
+            setSearchTerm(e.target.value)
+            setCurrentPage(1)
+          }}
+        />
+      </div>
+
+      {type === 'revenues' && (
+        <div className="transaction-filter-field">
+          <label>Status</label>
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value)
+              setCurrentPage(1)
+            }}
+          >
+            <option value="all">All Status</option>
+            <option value="Pending">Pending</option>
+            <option value="Paid">Paid</option>
+            <option value="Cancelled">Cancelled</option>
+          </select>
+        </div>
+      )}
+
+      <div className="transaction-filter-field">
+        <label>From</label>
+        <input
+          type="date"
+          value={dateFrom}
+          onChange={(e) => {
+            setDateFrom(e.target.value)
+            setCurrentPage(1)
+          }}
+        />
+      </div>
+
+      <div className="transaction-filter-field">
+        <label>To</label>
+        <input
+          type="date"
+          value={dateTo}
+          onChange={(e) => {
+            setDateTo(e.target.value)
+            setCurrentPage(1)
+          }}
+        />
+      </div>
+
+      <div className="transaction-filter-field small">
+        <label>Min</label>
+        <input
+          type="number"
+          placeholder="0"
+          value={minAmount}
+          onChange={(e) => {
+            setMinAmount(e.target.value)
+            setCurrentPage(1)
+          }}
+        />
+      </div>
+
+      <div className="transaction-filter-field small">
+        <label>Max</label>
+        <input
+          type="number"
+          placeholder="Any"
+          value={maxAmount}
+          onChange={(e) => {
+            setMaxAmount(e.target.value)
+            setCurrentPage(1)
+          }}
+        />
+      </div>
+
+      <div className="transaction-control-actions">
+        <button className="transaction-secondary-btn" onClick={resetTransactionFilters}>
+          Reset
+        </button>
+
+        <button
+          className="transaction-export-btn"
+          onClick={() => exportToExcel(data, filename)}
+        >
+          Export Excel
+        </button>
+      </div>
+    </div>
+  )
+
+  const getPaginatedData = (data) => {
+    const startIndex = (currentPage - 1) * rowsPerPage
+    return data.slice(startIndex, startIndex + rowsPerPage)
+  }
+
+  const renderPagination = (totalItems) => {
+    const totalPages = Math.ceil(totalItems / rowsPerPage)
+
+    if (totalPages <= 1) return null
+
+    return (
+      <div className="transaction-pagination">
+        <p>
+          Showing {(currentPage - 1) * rowsPerPage + 1}-
+          {Math.min(currentPage * rowsPerPage, totalItems)} of {totalItems} records
+        </p>
+
+        <div className="transaction-pages">
+          <button
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((prev) => prev - 1)}
+          >
+            ‹
+          </button>
+
+          {Array.from({ length: totalPages }, (_, index) => (
+            <button
+              key={index + 1}
+              className={currentPage === index + 1 ? 'active' : ''}
+              onClick={() => setCurrentPage(index + 1)}
+            >
+              {index + 1}
+            </button>
+          ))}
+
+          <button
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((prev) => prev + 1)}
+          >
+            ›
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   const renderRevenuesTab = () => {
     if (loadingInvoices) return <LoadingState message="Loading revenue records..." />
-if (errorInvoices) return <EmptyState title="Revenue loading failed" message={errorInvoices} />
+    if (errorInvoices) return <EmptyState title="Revenue loading failed" message={errorInvoices} />
+
+    const filteredInvoices = processData(invoices, 'revenues')
+    const paginatedInvoices = getPaginatedData(filteredInvoices)
+
+    const exportRows = filteredInvoices.map((invoice) => ({
+      Reference: invoice.reference || '-',
+      Client: invoice.Client?.name || '-',
+      Project: invoice.Project?.name || '-',
+      Status: invoice.status || '-',
+      'Issue Date': invoice.issue_date ? invoice.issue_date.slice(0, 10) : '-',
+      'Due Date': invoice.due_date ? invoice.due_date.slice(0, 10) : '-',
+      Amount: Number(invoice.amount || 0),
+    }))
     return (
       <>
         <div className="table-header">
-          <span>All Invoices (Revenue Source)</span>
           <div>
-            <button>Filter</button>
-            <button>Export</button>
+            <span>All Invoices (Revenue Source)</span>
+            <p>{filteredInvoices.length} visible records from {invoices.length} total invoices</p>
           </div>
         </div>
 
-        <table>
-  <thead>
-    <tr>
-      <th>Reference</th>
-      <th>Client</th>
-      <th>Project</th>
-      <th>Status</th>
-      <th>Issue Date</th>
-      <th>Due Date</th>
-      <th>Amount</th>
-      <th>Actions</th>
-    </tr>
-  </thead>
+        {renderTableControls('revenues', exportRows, 'revenues')}
 
-  <tbody>
-    {invoices.length > 0 ? (
-      invoices.map((invoice) => (
-        <tr key={invoice.id}>
-          <td>{invoice.reference || '-'}</td>
-          <td>{invoice.Client?.name || '-'}</td>
-          <td>{invoice.Project?.name || '-'}</td>
-          <td>{invoice.status || '-'}</td>
-          <td>{invoice.issue_date ? invoice.issue_date.slice(0, 10) : '-'}</td>
-          <td>{invoice.due_date ? invoice.due_date.slice(0, 10) : '-'}</td>
-          <td>${Number(invoice.amount || 0).toLocaleString()}</td>
-          <td>
-            <button onClick={() => openEditInvoiceModal(invoice)}>Edit</button>{' '}
-           <button
-  onClick={() => {
-    setSelectedId({ id: invoice.id, type: 'invoice' })
-    setShowConfirm(true)
-  }}
->
-  Delete
-</button>
-          </td>
-        </tr>
-      ))
-    ) : (
-    <tr>
-  <td colSpan="8">
-    <EmptyState
-      title="No invoices found"
-      message="Create invoice records to populate the revenue table."
-    />
-  </td>
-</tr>
-    )}
-  </tbody>
-</table>
+        <table>
+          <thead>
+            <tr>
+              <th onClick={() => handleSort('reference')}>Reference {getSortIcon('reference')}</th>
+              <th onClick={() => handleSort('client')}>Client {getSortIcon('client')}</th>
+              <th onClick={() => handleSort('project')}>Project {getSortIcon('project')}</th>
+              <th onClick={() => handleSort('status')}>Status {getSortIcon('status')}</th>
+              <th onClick={() => handleSort('displayDate')}>Issue Date {getSortIcon('displayDate')}</th>
+              <th onClick={() => handleSort('due_date')}>Due Date {getSortIcon('due_date')}</th>
+              <th onClick={() => handleSort('displayAmount')}>Amount {getSortIcon('displayAmount')}</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filteredInvoices.length > 0 ? (
+              paginatedInvoices.map((invoice) => (
+                <tr
+                  key={invoice.id}
+                  className={highlightedRow?.type === 'revenues' && highlightedRow?.id === invoice.id ? 'transaction-row-highlight' : ''}
+                >
+                  <td>{invoice.reference || '-'}</td>
+                  <td>{invoice.Client?.name || '-'}</td>
+                  <td>{invoice.Project?.name || '-'}</td>
+                  <td>{invoice.status || '-'}</td>
+                  <td>{invoice.issue_date ? invoice.issue_date.slice(0, 10) : '-'}</td>
+                  <td>{invoice.due_date ? invoice.due_date.slice(0, 10) : '-'}</td>
+                  <td>${Number(invoice.amount || 0).toLocaleString()}</td>
+                  <td>
+                    <div className="transaction-row-actions">
+                      <button className="transaction-action-btn edit" onClick={() => openEditInvoiceModal(invoice)}>
+                        Edit
+                      </button>
+                      <button
+                        className="transaction-action-btn delete"
+                        onClick={() => {
+                          setSelectedId({ id: invoice.id, type: 'invoice' })
+                          setShowConfirm(true)
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="8">
+                  <EmptyState
+                    title="No invoices found"
+                    message="No invoice records match your current filters."
+                  />
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        {renderPagination(filteredInvoices.length)}
       </>
     )
   }
 
   const renderExpensesTab = () => {
     if (loadingExpenses) return <LoadingState message="Loading expense records..." />
-if (errorExpenses) return <EmptyState title="Expense loading failed" message={errorExpenses} />
+    if (errorExpenses) return <EmptyState title="Expense loading failed" message={errorExpenses} />
+
+    const filteredExpenses = processData(expenses, 'expenses')
+    const paginatedExpenses = getPaginatedData(filteredExpenses)
+
+    const exportRows = filteredExpenses.map((expense) => ({
+      Date: expense.date ? expense.date.slice(0, 10) : '-',
+      Description: expense.description || '-',
+      Project: expense.Project?.name || '-',
+      Category: expense.Category?.name || '-',
+      Supplier: expense.Fournisseur?.name || '-',
+      Reference: expense.reference || '-',
+      Amount: Number(expense.amount || 0),
+    }))
+
     return (
       <>
         <div className="table-header">
-          <span>All Expenses</span>
           <div>
-            <button>Filter</button>
-            <button>Export</button>
+            <span>All Expenses</span>
+            <p>{filteredExpenses.length} visible records from {expenses.length} total expenses</p>
           </div>
         </div>
+
+        {renderTableControls('expenses', exportRows, 'expenses')}
 
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Description</th>
-              <th>Project</th>
-              <th>Category</th>
-              <th>Supplier</th>
-              <th>Reference</th>
-              <th>Amount</th>
+              <th onClick={() => handleSort('displayDate')}>Date {getSortIcon('displayDate')}</th>
+              <th onClick={() => handleSort('description')}>Description {getSortIcon('description')}</th>
+              <th onClick={() => handleSort('project')}>Project {getSortIcon('project')}</th>
+              <th onClick={() => handleSort('category')}>Category {getSortIcon('category')}</th>
+              <th onClick={() => handleSort('supplier')}>Supplier {getSortIcon('supplier')}</th>
+              <th onClick={() => handleSort('reference')}>Reference {getSortIcon('reference')}</th>
+              <th onClick={() => handleSort('displayAmount')}>Amount {getSortIcon('displayAmount')}</th>
               <th>Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {expenses.length > 0 ? (
-              expenses.map((expense) => (
-                <tr key={expense.id}>
+            {filteredExpenses.length > 0 ? (
+              paginatedExpenses.map((expense) => (
+                <tr
+                  key={expense.id}
+                  className={highlightedRow?.type === 'expenses' && highlightedRow?.id === expense.id ? 'transaction-row-highlight' : ''}
+                >
                   <td>{expense.date ? expense.date.slice(0, 10) : '-'}</td>
                   <td>{expense.description || '-'}</td>
                   <td>{expense.Project?.name || '-'}</td>
@@ -682,93 +1199,123 @@ if (errorExpenses) return <EmptyState title="Expense loading failed" message={er
                   <td>{expense.reference || '-'}</td>
                   <td>${Number(expense.amount || 0).toLocaleString()}</td>
                   <td>
-                    <button onClick={() => openEditExpenseModal(expense)}>Edit</button>{' '}
-                    <button
-  onClick={() => {
-    setSelectedId({ id: expense.id, type: 'expense' })
-    setShowConfirm(true)
-  }}
->
-  Delete
-</button>
+                    <div className="transaction-row-actions">
+                      <button className="transaction-action-btn edit" onClick={() => openEditExpenseModal(expense)}>
+                        Edit
+                      </button>
+                      <button
+                        className="transaction-action-btn delete"
+                        onClick={() => {
+                          setSelectedId({ id: expense.id, type: 'expense' })
+                          setShowConfirm(true)
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-  <td colSpan="8">
-    <EmptyState
-      title="No expenses found"
-      message="Create expense records to populate the expense table."
-    />
-  </td>
-</tr>
+                <td colSpan="8">
+                  <EmptyState
+                    title="No expenses found"
+                    message="No expense records match your current filters."
+                  />
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
+
+        {renderPagination(filteredExpenses.length)}
       </>
     )
   }
 
   const renderSalariesTab = () => {
-   if (loadingSalaries) return <LoadingState message="Loading salary records..." />
-if (errorSalaries) return <EmptyState title="Salary loading failed" message={errorSalaries} />
+    if (loadingSalaries) return <LoadingState message="Loading salary records..." />
+    if (errorSalaries) return <EmptyState title="Salary loading failed" message={errorSalaries} />
+
+    const filteredSalaries = processData(salaries, 'salaries')
+    const paginatedSalaries = getPaginatedData(filteredSalaries)
+
+    const exportRows = filteredSalaries.map((salary) => ({
+      Month: salary.month || '-',
+      Year: salary.year || '-',
+      'Amount Paid': Number(salary.amount_paid || 0),
+      'Payment Date': salary.payment_date ? salary.payment_date.slice(0, 10) : '-',
+      'Employee ID': salary.EmployeeId || '-',
+    }))
+
     return (
       <>
         <div className="table-header">
-          <span>All Salaries</span>
           <div>
-            <button>Filter</button>
-            <button>Export</button>
+            <span>All Salaries</span>
+            <p>{filteredSalaries.length} visible records from {salaries.length} total salaries</p>
           </div>
         </div>
+
+        {renderTableControls('salaries', exportRows, 'salaries')}
 
         <table>
           <thead>
             <tr>
-              <th>Month</th>
-              <th>Year</th>
-              <th>Amount Paid</th>
-              <th>Payment Date</th>
-              <th>Employee ID</th>
+              <th onClick={() => handleSort('month')}>Month {getSortIcon('month')}</th>
+              <th onClick={() => handleSort('year')}>Year {getSortIcon('year')}</th>
+              <th onClick={() => handleSort('displayAmount')}>Amount Paid {getSortIcon('displayAmount')}</th>
+              <th onClick={() => handleSort('displayDate')}>Payment Date {getSortIcon('displayDate')}</th>
+              <th onClick={() => handleSort('EmployeeId')}>Employee ID {getSortIcon('EmployeeId')}</th>
               <th>Actions</th>
             </tr>
           </thead>
 
           <tbody>
-            {salaries.length > 0 ? (
-              salaries.map((salary) => (
-                <tr key={salary.id}>
-                  <td>{salary.month}</td>
-                  <td>{salary.year}</td>
+            {filteredSalaries.length > 0 ? (
+              paginatedSalaries.map((salary) => (
+                <tr
+                  key={salary.id}
+                  className={highlightedRow?.type === 'salaries' && highlightedRow?.id === salary.id ? 'transaction-row-highlight' : ''}
+                >
+                  <td>{salary.month || '-'}</td>
+                  <td>{salary.year || '-'}</td>
                   <td>${Number(salary.amount_paid || 0).toLocaleString()}</td>
                   <td>{salary.payment_date ? salary.payment_date.slice(0, 10) : '-'}</td>
                   <td>{salary.EmployeeId || '-'}</td>
                   <td>
-                    <button onClick={() => openEditSalaryModal(salary)}>Edit</button>{' '}
-                    <button
-  onClick={() => {
-    setSelectedId({ id: salary.id, type: 'salary' })
-    setShowConfirm(true)
-  }}
->
-  Delete
-</button>
+                    <div className="transaction-row-actions">
+                      <button className="transaction-action-btn edit" onClick={() => openEditSalaryModal(salary)}>
+                        Edit
+                      </button>
+                      <button
+                        className="transaction-action-btn delete"
+                        onClick={() => {
+                          setSelectedId({ id: salary.id, type: 'salary' })
+                          setShowConfirm(true)
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
             ) : (
-             <tr>
-  <td colSpan="6">
-    <EmptyState
-      title="No salaries found"
-      message="Create salary records to populate the salary table."
-    />
-  </td>
-</tr>
+              <tr>
+                <td colSpan="6">
+                  <EmptyState
+                    title="No salaries found"
+                    message="No salary records match your current filters."
+                  />
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
+
+        {renderPagination(filteredSalaries.length)}
       </>
     )
   }
@@ -783,6 +1330,88 @@ if (errorSalaries) return <EmptyState title="Salary loading failed" message={err
     handleDeleteInvoice(selectedId.id)
   }
 }
+
+const renderImportTab = () => (
+  <div className="import-panel">
+    <div className="import-header">
+      <div>
+        <h3>Import Financial Data</h3>
+        <p>Upload CSV or Excel files to insert invoices, expenses or salaries.</p>
+      </div>
+      <span className="import-badge">CSV / Excel</span>
+    </div>
+
+    <div className="import-controls">
+      <div className="import-field">
+        <label>Dataset Type</label>
+        <select
+          value={importType}
+          onChange={(e) => {
+            setImportType(e.target.value)
+            setImportRows([])
+            setImportErrors([])
+            setImportFileName('')
+          }}
+        >
+          <option value="invoices">Invoices</option>
+          <option value="expenses">Expenses</option>
+          <option value="salaries">Salaries</option>
+        </select>
+      </div>
+
+      <div className="import-field">
+        <label>Upload File</label>
+        <input type="file" accept=".csv,.xlsx,.xls" onChange={handleImportFile} />
+      </div>
+
+      <button className="import-btn" onClick={handleImportData}>
+        Import Data
+      </button>
+    </div>
+
+    <div className="import-requirements">
+      <strong>Required columns:</strong>{' '}
+      {requiredColumns[importType].join(', ')}
+    </div>
+
+    {importFileName && (
+      <p className="import-file-name">Selected file: {importFileName}</p>
+    )}
+
+    {importErrors.length > 0 && (
+      <div className="import-errors">
+        {importErrors.slice(0, 5).map((err, index) => (
+          <p key={index}>{err}</p>
+        ))}
+      </div>
+    )}
+
+    {importRows.length > 0 && (
+      <div className="import-preview">
+        <h4>Preview</h4>
+        <table>
+          <thead>
+            <tr>
+              {Object.keys(importRows[0]).map((key) => (
+                <th key={key}>{key}</th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {importRows.slice(0, 10).map((row, index) => (
+              <tr key={index}>
+                {Object.keys(importRows[0]).map((key) => (
+                  <td key={key}>{row[key] || '-'}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+)
 
   const getMainKpi = () => {
     if (activeTab === 'revenues') {
@@ -803,11 +1432,20 @@ if (errorSalaries) return <EmptyState title="Salary loading failed" message={err
       }
     }
 
+    if (activeTab === 'salaries') {
+      return {
+        title: 'Total Salaries',
+        value: `$${totalSalaries.toLocaleString()}`,
+        subtitle: `${salaries.length} salary records loaded`,
+        source: 'Real data loaded from /api/salaries',
+      }
+    }
+
     return {
-      title: 'Total Salaries',
-      value: `$${totalSalaries.toLocaleString()}`,
-      subtitle: `${salaries.length} salary records loaded`,
-      source: 'Real data loaded from /api/salaries',
+      title: 'Import Workspace',
+      value: importRows.length ? `${importRows.length} rows` : 'Ready',
+      subtitle: importFileName || 'Upload CSV or Excel data for invoices, expenses or salaries',
+      source: 'Local preview with backend insert after validation',
     }
   }
 
@@ -831,60 +1469,60 @@ if (errorSalaries) return <EmptyState title="Salary loading failed" message={err
         <div className="tabs">
           <button
             className={activeTab === 'revenues' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('revenues')}
+            onClick={() => handleTabChange('revenues')}
           >
             Revenues
           </button>
 
           <button
             className={activeTab === 'expenses' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('expenses')}
+            onClick={() => handleTabChange('expenses')}
           >
             Expenses
           </button>
 
           <button
             className={activeTab === 'salaries' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('salaries')}
+            onClick={() => handleTabChange('salaries')}
           >
             Salaries
           </button>
 
           <button
             className={activeTab === 'import' ? 'tab active' : 'tab'}
-            onClick={() => setActiveTab('import')}
+            onClick={() => handleTabChange('import')}
           >
             Import Data
           </button>
         </div>
 
-        <button
-          className="add-btn"
-          onClick={() => {
-  setEditingInvoice(null)
-  setEditingExpense(null)
-  setEditingSalary(null)
-  setShowInvoiceModal(false)
-  setShowExpenseModal(false)
-  setShowSalaryModal(false)
+        {activeTab !== 'import' && (
+          <button
+            className="add-btn"
+            onClick={() => {
+              setEditingInvoice(null)
+              setEditingExpense(null)
+              setEditingSalary(null)
+              setShowInvoiceModal(false)
+              setShowExpenseModal(false)
+              setShowSalaryModal(false)
 
-  if (activeTab === 'revenues') {
-    setShowInvoiceModal(true)
-  } else if (activeTab === 'expenses') {
-    setShowExpenseModal(true)
-  } else if (activeTab === 'salaries') {
-    setShowSalaryModal(true)
-  }
-}}
-        >
-          + Add New {activeTab === 'revenues'
-            ? 'Invoice'
-            : activeTab === 'expenses'
-            ? 'Expense'
-            : activeTab === 'salaries'
-            ? 'Salary'
-            : 'Record'}
-        </button>
+              if (activeTab === 'revenues') {
+                setShowInvoiceModal(true)
+              } else if (activeTab === 'expenses') {
+                setShowExpenseModal(true)
+              } else if (activeTab === 'salaries') {
+                setShowSalaryModal(true)
+              }
+            }}
+          >
+            + Add New {activeTab === 'revenues'
+              ? 'Invoice'
+              : activeTab === 'expenses'
+              ? 'Expense'
+              : 'Salary'}
+          </button>
+        )}
       </div>
 
       <div className="kpi-row">
@@ -902,19 +1540,16 @@ if (errorSalaries) return <EmptyState title="Salary loading failed" message={err
       </div>
 
       <div className="table-card">
-        {activeTab === 'revenues' ? (
-          renderRevenuesTab()
-        ) : activeTab === 'expenses' ? (
-          renderExpensesTab()
-        ) : activeTab === 'salaries' ? (
-          renderSalariesTab()
-        ) : (
-          <div className="placeholder-block">
-            <h3>Import Data</h3>
-            <p>This tab will later connect to import/ETL functionality.</p>
-          </div>
-        )}
-      </div>
+  {activeTab === 'revenues' ? (
+    renderRevenuesTab()
+  ) : activeTab === 'expenses' ? (
+    renderExpensesTab()
+  ) : activeTab === 'salaries' ? (
+    renderSalariesTab()
+  ) : (
+    renderImportTab()
+  )}
+</div>
 
       <div className="bottom-grid">
         <div className="distribution">

@@ -1,306 +1,630 @@
+import { useEffect, useState } from 'react'
 import './UserManagement.css'
 import PageHeader from '../common/PageHeader'
+import API_BASE_URL from '../../services/api'
+import LoadingState from '../common/LoadingState'
+import EmptyState from '../common/EmptyState'
+import Toast from '../common/Toast'
+
+const roleMap = {
+  1: 'Admin',
+  2: 'Manager',
+  3: 'Finance',
+}
 
 function UserManagement() {
-  const roles = [
-    {
-      name: 'Admin',
-      badgeClass: 'admin',
-      description: 'Full system control and administration.',
-      access: [
-        'Dashboard',
-        'Master Data',
-        'Financial Transactions',
-        'Financial Analysis',
-        'Power BI',
-        'AI Analysis',
-        'Settings',
-        'User governance',
-      ],
-      status: 'Implemented conceptually',
-      notes: 'This is the main actor currently represented by the application flow.',
-    },
-    {
-      name: 'Manager',
-      badgeClass: 'manager',
-      description: 'Decision-oriented access for strategic monitoring.',
-      access: [
-        'Dashboard',
-        'Financial Analysis',
-        'Power BI',
-        'AI Analysis',
-      ],
-      status: 'Planned UI role',
-      notes: 'Should mainly consult analytics, KPIs, and strategic summaries.',
-    },
-    {
-      name: 'Finance',
-      badgeClass: 'finance',
-      description: 'Operational financial management and reporting.',
-      access: [
-        'Dashboard',
-        'Financial Transactions',
-        'Master Data (partial)',
-        'Financial Analysis',
-        'Power BI',
-      ],
-      status: 'Planned UI role',
-      notes: 'Should manage invoices, expenses, salaries, and financial records.',
-    },
-  ]
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const pageCards = [
-    {
-      title: 'Defined Roles',
-      value: '3',
-      note: 'Admin • Manager • Finance',
-      className: 'positive',
-    },
-    {
-      title: 'Current Auth Base',
-      value: 'JWT',
-      note: 'Login and protected access already in place',
-      className: 'neutral',
-    },
-    {
-      title: 'Backend Readiness',
-      value: 'Partial',
-      note: 'Role model exists, full user CRUD comes later',
-      className: 'neutral',
-    },
-    {
-      title: 'Governance Status',
-      value: 'Structured',
-      note: 'Access matrix aligned with current architecture',
-      className: 'positive',
-    },
-  ]
+  const [showModal, setShowModal] = useState(false)
+  const [editingUser, setEditingUser] = useState(null)
+  const [toast, setToast] = useState(null)
+  const [activities, setActivities] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('activities') || '[]')
+    } catch {
+      return []
+    }
+  })
 
-  const pageAccessMatrix = [
-    {
-      page: 'Dashboard',
-      admin: 'Yes',
-      manager: 'Yes',
-      finance: 'Yes',
-    },
-    {
-      page: 'Master Data',
-      admin: 'Yes',
-      manager: 'Read only / later',
-      finance: 'Partial',
-    },
-    {
-      page: 'Financial Transactions',
-      admin: 'Yes',
-      manager: 'No',
-      finance: 'Yes',
-    },
-    {
-      page: 'Financial Analysis',
-      admin: 'Yes',
-      manager: 'Yes',
-      finance: 'Yes',
-    },
-    {
-      page: 'Power BI',
-      admin: 'Yes',
-      manager: 'Yes',
-      finance: 'Yes',
-    },
-    {
-      page: 'AI Analysis',
-      admin: 'Yes',
-      manager: 'Yes',
-      finance: 'Limited / later',
-    },
-    {
-      page: 'Settings',
-      admin: 'Yes',
-      manager: 'No',
-      finance: 'No',
-    },
-    {
-      page: 'User Management',
-      admin: 'Yes',
-      manager: 'No',
-      finance: 'No',
-    },
-  ]
+  const [searchTerm, setSearchTerm] = useState('')
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const usersPerPage = 5
+
+  const [formData, setFormData] = useState({
+    username: '',
+    email: '',
+    password: '',
+    RoleId: 1,
+    isActive: true,
+  })
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 2500)
+  }
+
+  const logActivity = (action, user) => {
+    const existing = JSON.parse(localStorage.getItem('activities') || '[]')
+
+    const newActivity = {
+      id: Date.now(),
+      action,
+      username: user?.username || 'System',
+      role: user?.role || user?.RoleId || '',
+      time: new Date().toLocaleString(),
+    }
+
+    const updated = [newActivity, ...existing].slice(0, 10)
+    localStorage.setItem('activities', JSON.stringify(updated))
+    setActivities(updated)
+  }
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true)
+      setError('')
+
+      const response = await fetch(`${API_BASE_URL}/users`)
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to fetch users')
+      }
+
+      setUsers(result.data || [])
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+  const loadUsers = async () => {
+    await fetchUsers()
+  }
+
+  loadUsers()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [])
+
+  const resetForm = () => {
+    setFormData({
+      username: '',
+      email: '',
+      password: '',
+      RoleId: 1,
+      isActive: true,
+    })
+  }
+
+  const openCreateModal = () => {
+    setEditingUser(null)
+    resetForm()
+    setShowModal(true)
+  }
+
+  const openEditModal = (user) => {
+    setEditingUser(user)
+    setFormData({
+      username: user.username || '',
+      email: user.email || '',
+      password: '',
+      RoleId: user.RoleId || 1,
+      isActive: user.isActive ?? true,
+    })
+    setShowModal(true)
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+    setEditingUser(null)
+    resetForm()
+  }
+
+  const handleSubmit = async () => {
+    try {
+      if (!formData.username || !formData.email) {
+        showToast('Username and email are required', 'error')
+        return
+      }
+
+      if (!editingUser && !formData.password) {
+        showToast('Password is required for new users', 'error')
+        return
+      }
+
+      const payload = {
+        username: formData.username,
+        email: formData.email,
+        RoleId: Number(formData.RoleId),
+        isActive: formData.isActive,
+      }
+
+      if (formData.password) {
+        payload.password = formData.password
+      }
+
+      const url = editingUser
+        ? `${API_BASE_URL}/users/${editingUser.id}`
+        : `${API_BASE_URL}/users`
+
+      const response = await fetch(url, {
+        method: editingUser ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'User operation failed')
+      }
+
+      showToast(editingUser ? 'User updated successfully' : 'User created successfully')
+      logActivity(editingUser ? 'User updated' : 'User created', {
+        username: formData.username,
+        RoleId: formData.RoleId,
+      })
+
+      closeModal()
+      fetchUsers()
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
+  }
+
+  const handleToggleStatus = async (user) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isActive: user.isActive === false,
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to update status')
+      }
+
+      const action = user.isActive !== false ? 'User deactivated' : 'User activated'
+      showToast(action)
+      logActivity(action, user)
+      fetchUsers()
+    } catch (err) {
+      showToast(err.message, 'error')
+    }
+  }
+
+  const resetFilters = () => {
+    setSearchTerm('')
+    setRoleFilter('all')
+    setStatusFilter('all')
+    setCurrentPage(1)
+  }
+
+  const totalAdmins = users.filter((u) => Number(u.RoleId) === 1).length
+  const totalManagers = users.filter((u) => Number(u.RoleId) === 2).length
+  const totalFinance = users.filter((u) => Number(u.RoleId) === 3).length
+  const activeUsers = users.filter((u) => u.isActive !== false).length
+
+  const filteredUsers = users.filter((user) => {
+    const roleName = roleMap[user.RoleId] || `Role ${user.RoleId}`
+    const status = user.isActive !== false ? 'active' : 'inactive'
+
+    const matchesSearch =
+      user.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+
+    const matchesRole =
+      roleFilter === 'all' || roleName.toLowerCase() === roleFilter
+
+    const matchesStatus =
+      statusFilter === 'all' || status === statusFilter
+
+    return matchesSearch && matchesRole && matchesStatus
+  })
+
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage)
+
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * usersPerPage,
+    currentPage * usersPerPage
+  )
 
   return (
     <div className="um-page">
-     <PageHeader
-  title="User Management"
-  subtitle="Governance, access control and role structure of the application"
-/>
+      <PageHeader
+        title="User Management"
+        subtitle="Manage application users, roles and access control"
+        right={
+          <button className="primary-btn" onClick={openCreateModal}>
+            + Add User
+          </button>
+        }
+      />
 
       <section className="um-stats">
-        {pageCards.map((card) => (
-          <div className="um-stat-card" key={card.title}>
-            <p>{card.title}</p>
-            <h3>{card.value}</h3>
-            <span className={card.className}>{card.note}</span>
-          </div>
-        ))}
-      </section>
-
-      <section className="um-table-card">
-        <div className="um-table-top">
-          <div>
-            <h4>Role Governance Overview</h4>
-            <p>Access structure aligned with the current backend and application architecture</p>
-          </div>
-
-          <div className="um-actions">
-            <button className="secondary-btn">Export Matrix</button>
-            <button className="primary-btn">Role Strategy</button>
-          </div>
+        <div className="um-stat-card">
+          <p>Total Users</p>
+          <h3>{users.length}</h3>
+          <span className="neutral">Registered accounts</span>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Role</th>
-              <th>Main Responsibility</th>
-              <th>Current State</th>
-              <th>Notes</th>
-            </tr>
-          </thead>
+        <div className="um-stat-card">
+          <p>Active Users</p>
+          <h3>{activeUsers}</h3>
+          <span className="positive">Allowed access</span>
+        </div>
 
-          <tbody>
-            {roles.map((role) => (
-              <tr key={role.name}>
-                <td>
-                  <div className="um-user-cell">
-                    <div className={`avatar ${role.badgeClass}`}>
-                      {role.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div>
-                      <strong>{role.name}</strong>
-                      <span>{role.description}</span>
-                    </div>
-                  </div>
-                </td>
-                <td>
-                  <span className={`role ${role.badgeClass}`}>{role.name}</span>
-                </td>
-                <td>
-                  <span className="status active">{role.status}</span>
-                </td>
-                <td>{role.notes}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="um-stat-card">
+          <p>Admins</p>
+          <h3>{totalAdmins}</h3>
+          <span className="neutral">Full permissions</span>
+        </div>
 
-        <div className="um-pagination">
-          <p>Current system governance is based on 3 business roles.</p>
-          <div className="pages">
-            <button className="active">1</button>
-          </div>
+        <div className="um-stat-card">
+          <p>Finance / Managers</p>
+          <h3>{totalFinance + totalManagers}</h3>
+          <span className="neutral">Business roles</span>
         </div>
       </section>
 
       <section className="um-table-card">
         <div className="um-table-top">
           <div>
-            <h4>Page Access Matrix</h4>
-            <p>What each role should access according to the current project scope</p>
+            <h4>System Users</h4>
+            <p>Users loaded from backend API /api/users</p>
           </div>
 
           <div className="um-actions">
-            <button className="secondary-btn">Review Permissions</button>
+            <button className="secondary-btn" onClick={fetchUsers}>
+              Refresh
+            </button>
           </div>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Application Page</th>
-              <th>Admin</th>
-              <th>Manager</th>
-              <th>Finance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {pageAccessMatrix.map((row) => (
-              <tr key={row.page}>
-                <td>{row.page}</td>
-                <td>{row.admin}</td>
-                <td>{row.manager}</td>
-                <td>{row.finance}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="um-filter-bar">
+          <div className="um-filter-field">
+            <label>Search</label>
+            <input
+              type="text"
+              placeholder="Username or email..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setCurrentPage(1)
+              }}
+            />
+          </div>
+
+          <div className="um-filter-field">
+            <label>Role</label>
+            <select
+              value={roleFilter}
+              onChange={(e) => {
+                setRoleFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+            >
+              <option value="all">All Roles</option>
+              <option value="admin">Admin</option>
+              <option value="manager">Manager</option>
+              <option value="finance">Finance</option>
+            </select>
+          </div>
+
+          <div className="um-filter-field">
+            <label>Status</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setCurrentPage(1)
+              }}
+            >
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div className="um-filter-field um-filter-reset">
+            <label>Actions</label>
+            <button className="secondary-btn" onClick={resetFilters}>
+              Reset Filters
+            </button>
+          </div>
+        </div>
+
+        {loading ? (
+          <LoadingState message="Loading users..." />
+        ) : error ? (
+          <EmptyState title="Users loading failed" message={error} />
+        ) : filteredUsers.length === 0 ? (
+          <EmptyState
+            title="No users found"
+            message="Create user accounts to manage application access."
+          />
+        ) : (
+          <>
+            <table>
+              <thead>
+                <tr>
+                  <th>User</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {paginatedUsers.map((user) => {
+                  const roleName = roleMap[user.RoleId] || `Role ${user.RoleId}`
+
+                  return (
+                    <tr key={user.id}>
+                      <td>
+                        <div className="um-user-cell">
+                          <div className={`avatar ${roleName.toLowerCase()}`}>
+                            {(user.username || 'U').slice(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <strong>{user.username}</strong>
+                            <span>ID: {user.id}</span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>{user.email}</td>
+
+                      <td>
+                        <span className={`role ${roleName.toLowerCase()}`}>
+                          {roleName}
+                        </span>
+                      </td>
+
+                      <td>
+                        <span
+                          className={
+                            user.isActive !== false
+                              ? 'status active'
+                              : 'status inactive'
+                          }
+                        >
+                          {user.isActive !== false ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
+
+                      <td>
+                        <div className="um-row-actions">
+                          <button
+                            className="um-action-btn edit"
+                            onClick={() => openEditModal(user)}
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            className={
+                              user.isActive !== false
+                                ? 'um-action-btn deactivate'
+                                : 'um-action-btn activate'
+                            }
+                            onClick={() => handleToggleStatus(user)}
+                          >
+                            {user.isActive !== false ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+
+            {filteredUsers.length > usersPerPage && (
+              <div className="um-pagination">
+                <p>
+                  Showing {(currentPage - 1) * usersPerPage + 1}-
+                  {Math.min(currentPage * usersPerPage, filteredUsers.length)} of{' '}
+                  {filteredUsers.length} users
+                </p>
+
+                <div className="pages">
+                  <button
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => prev - 1)}
+                  >
+                    ‹
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, index) => (
+                    <button
+                      key={index + 1}
+                      className={currentPage === index + 1 ? 'active' : ''}
+                      onClick={() => setCurrentPage(index + 1)}
+                    >
+                      {index + 1}
+                    </button>
+                  ))}
+
+                  <button
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((prev) => prev + 1)}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </section>
 
       <section className="um-bottom-grid">
         <div className="security-card">
           <h4>Security & Authorization</h4>
           <p>
-            The backend already includes a role model, JWT authentication, and role-aware
-            authorization foundations. Full user CRUD and advanced permission workflows can be
-            connected later when the backend module is extended.
+            User access is structured around JWT authentication and role-based navigation.
+            The administrator can manage accounts and assign roles according to responsibilities.
           </p>
-          <button>Review Authorization Logic</button>
         </div>
 
         <div className="sessions-card">
           <div className="sessions-top">
             <div>
-              <h4>Role Implementation Status</h4>
-              <p>Current project reality versus future extension plan</p>
+              <h4>Role Distribution</h4>
+              <p>Current users grouped by access level</p>
             </div>
-            <span className="live-pill">Structured</span>
+            <span className="live-pill">Live</span>
           </div>
 
           <div className="sessions-grid">
             <div>
-              <p>Admin Workflow</p>
-              <h5>Ready</h5>
+              <p>Admins</p>
+              <h5>{totalAdmins}</h5>
             </div>
             <div>
-              <p>Manager UI Logic</p>
-              <h5>Later</h5>
+              <p>Managers</p>
+              <h5>{totalManagers}</h5>
             </div>
             <div>
-              <p>Finance UI Logic</p>
-              <h5>Later</h5>
+              <p>Finance</p>
+              <h5>{totalFinance}</h5>
+            </div>
+          </div>
+        </div>
+
+        <div className="activity-card">
+          <div className="activity-head">
+            <div>
+              <h4>Recent Activity</h4>
+              <span>Last account actions</span>
             </div>
           </div>
 
-          <div className="sessions-footer">
-            <span>Current frontend is centered on the Admin experience.</span>
-            <button>Open Role Notes</button>
-          </div>
+          {activities.length === 0 ? (
+            <p className="activity-empty">No activity recorded yet.</p>
+          ) : (
+            <div className="activity-list">
+              {activities.map((act) => (
+                <div key={act.id} className="activity-item">
+                  <div>
+                    <strong>{act.action}</strong>
+                    <p>{act.username}</p>
+                  </div>
+                  <span>{act.time}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
-      <section className="um-table-card">
-        <div className="um-table-top">
-          <div>
-            <h4>Role Access Details</h4>
-            <p>Functional responsibilities expected for each role in the final system</p>
-          </div>
-        </div>
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal">
+            <h3>{editingUser ? 'Edit User' : 'Add New User'}</h3>
 
-        <div className="um-role-grid">
-          {roles.map((role) => (
-            <div className="um-role-card" key={role.name}>
-              <div className="um-role-card-top">
-                <span className={`role ${role.badgeClass}`}>{role.name}</span>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Username</label>
+                <input
+                  placeholder="Enter username"
+                  value={formData.username}
+                  onChange={(e) =>
+                    setFormData({ ...formData, username: e.target.value })
+                  }
+                />
+                <small>Used as the display name inside the system.</small>
               </div>
-              <p className="um-role-card-desc">{role.description}</p>
-              <ul>
-                {role.access.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+
+              <div className="form-group">
+                <label>Email</label>
+                <input
+                  type="email"
+                  placeholder="name@company.com"
+                  value={formData.email}
+                  onChange={(e) =>
+                    setFormData({ ...formData, email: e.target.value })
+                  }
+                />
+                <small>Used for authentication and identification.</small>
+              </div>
             </div>
-          ))}
+
+            <div className="form-group">
+              <label>Password</label>
+              <input
+                type="password"
+                placeholder={editingUser ? 'Leave empty to keep current password' : 'Create a password'}
+                value={formData.password}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+              />
+              <small>
+                {editingUser
+                  ? 'Only fill this field if you want to reset the password.'
+                  : 'Required when creating a new user account.'}
+              </small>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Role</label>
+                <select
+                  value={formData.RoleId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, RoleId: Number(e.target.value) })
+                  }
+                >
+                  <option value={1}>Admin</option>
+                  <option value={2}>Manager</option>
+                  <option value={3}>Finance</option>
+                </select>
+                <small>Controls access to application modules.</small>
+              </div>
+
+              <div className="form-group">
+                <label>Account Status</label>
+                <select
+                  value={formData.isActive ? 'active' : 'inactive'}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      isActive: e.target.value === 'active',
+                    })
+                  }
+                >
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+                <small>Inactive users cannot access protected modules.</small>
+              </div>
+            </div>
+
+            <div className="modal-actions">
+              <button onClick={handleSubmit}>
+                {editingUser ? 'Save Changes' : 'Create User'}
+              </button>
+              <button onClick={closeModal}>Cancel</button>
+            </div>
+          </div>
         </div>
-      </section>
+      )}
+
+      {toast && <Toast message={toast.message} type={toast.type} />}
     </div>
   )
 }

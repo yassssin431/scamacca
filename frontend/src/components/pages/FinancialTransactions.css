@@ -207,3 +207,299 @@ table button:hover {
   height: 110px;
   background: linear-gradient(to top, #475569, #64748b);
 }
+.transaction-controls {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 0.8fr 0.8fr auto;
+  gap: 12px;
+  margin-bottom: 22px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e5eaf0;
+  border-radius: 14px;
+}
+
+.transaction-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.transaction-filter-field label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #64748b;
+}
+
+.transaction-filter-field input,
+.transaction-filter-field select {
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  background: white;
+  padding: 11px 12px;
+  font-size: 13px;
+  color: #041627;
+  outline: none;
+}
+
+.transaction-filter-field input:focus,
+.transaction-filter-field select:focus {
+  border-color: #041627;
+  box-shadow: 0 0 0 4px rgba(4, 22, 39, 0.05);
+}
+
+.transaction-control-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.transaction-secondary-btn,
+.transaction-export-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.transaction-secondary-btn {
+  background: white;
+  color: #041627;
+  border: 1px solid #dbe2ea;
+}
+
+.transaction-export-btn {
+  background: #041627;
+  color: white;
+}
+
+.transaction-row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.transaction-action-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.transaction-action-btn.edit {
+  background: #eef2f6;
+  color: #041627;
+}
+
+.transaction-action-btn.delete {
+  background: #fee2e2;
+  color: #ba1a1a;
+}
+
+.table-card th {
+  cursor: pointer;
+  user-select: none;
+}
+
+.table-header p {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+@media (max-width: 1200px) {
+  .transaction-controls {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .transaction-control-actions {
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 768px) {
+  .transaction-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .transaction-row-actions {
+    flex-direction: column;
+  }
+}
+.import-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.import-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.import-header h3 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #041627;
+  font-family: 'Manrope', sans-serif;
+}
+
+.import-header p,
+.import-file-name {
+  color: #64748b;
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.import-badge {
+  background: #dcfce7;
+  color: #006c4a;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 8px 12px;
+  border-radius: 999px;
+}
+
+.import-controls {
+  display: grid;
+  grid-template-columns: 1fr 2fr auto;
+  gap: 14px;
+  align-items: end;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e5eaf0;
+  border-radius: 14px;
+}
+
+.import-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.import-field label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #64748b;
+}
+
+.import-field input,
+.import-field select {
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  background: white;
+  padding: 11px 12px;
+  font-size: 13px;
+  color: #041627;
+}
+
+.import-btn {
+  border: none;
+  background: #041627;
+  color: white;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.import-requirements {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #92400e;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.import-errors {
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  color: #ba1a1a;
+  padding: 12px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+}
+
+.import-preview {
+  overflow-x: auto;
+}
+
+.import-preview h4 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #041627;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 900px) {
+  .import-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .import-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
+.transaction-pagination {
+  margin-top: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.transaction-pagination p {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.transaction-pages {
+  display: flex;
+  gap: 8px;
+}
+
+.transaction-pages button {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #dbe2ea;
+  background: white;
+  color: #041627;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.transaction-pages button.active {
+  background: #041627;
+  color: white;
+  border-color: #041627;
+}
+
+.transaction-pages button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.transaction-row-highlight {
+  animation: transactionHighlight 3.5s ease;
+}
+
+@keyframes transactionHighlight {
+  0% {
+    background: #dcfce7;
+  }
+
+  100% {
+    background: transparent;
+  }
+}

@@ -2,12 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import API_BASE_URL from '../../services/api'
 import './FinancialAnalysis.css'
 import PageHeader from '../common/PageHeader'
+import * as XLSX from 'xlsx'
 
 function FinancialAnalysis() {
   const [invoices, setInvoices] = useState([])
   const [expenses, setExpenses] = useState([])
   const [salaries, setSalaries] = useState([])
   const [projects, setProjects] = useState([])
+  const [importType, setImportType] = useState('invoices')
+const [importRows, setImportRows] = useState([])
+const [importFileName, setImportFileName] = useState('')
+const [importErrors, setImportErrors] = useState([])
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -113,6 +118,220 @@ function FinancialAnalysis() {
       </div>
     )
   }
+  const requiredColumns = {
+  invoices: ['amount', 'issue_date', 'ClientId', 'ProjectId'],
+  expenses: ['amount', 'date', 'CategoryId', 'ProjectId'],
+  salaries: ['month', 'year', 'amount_paid', 'payment_date', 'EmployeeId'],
+}
+
+const parseCsv = (text) => {
+  const lines = text.trim().split('\n')
+  const headers = lines[0].split(',').map((h) => h.trim())
+
+  return lines.slice(1).map((line) => {
+    const values = line.split(',').map((v) => v.trim())
+    return headers.reduce((obj, header, index) => {
+      obj[header] = values[index] || ''
+      return obj
+    }, {})
+  })
+}
+
+const validateImportRows = (rows, type) => {
+  const required = requiredColumns[type]
+  const errors = []
+
+  rows.forEach((row, index) => {
+    required.forEach((col) => {
+      if (!row[col]) {
+        errors.push(`Row ${index + 1}: Missing ${col}`)
+      }
+    })
+  })
+
+  return errors
+}
+
+const handleImportFile = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+
+  setImportFileName(file.name)
+  setImportRows([])
+  setImportErrors([])
+
+  const extension = file.name.split('.').pop().toLowerCase()
+  const reader = new FileReader()
+
+  reader.onload = (event) => {
+    let rows = []
+
+    if (extension === 'csv') {
+      rows = parseCsv(event.target.result)
+    } else if (extension === 'xlsx' || extension === 'xls') {
+      const workbook = XLSX.read(event.target.result, { type: 'array' })
+      const sheetName = workbook.SheetNames[0]
+      const sheet = workbook.Sheets[sheetName]
+      rows = XLSX.utils.sheet_to_json(sheet)
+    } else {
+      showToastMessage('Unsupported file format', 'error')
+      return
+    }
+
+    const errors = validateImportRows(rows, importType)
+
+    setImportRows(rows)
+    setImportErrors(errors)
+
+    if (errors.length > 0) {
+      showToastMessage('File loaded with validation errors', 'error')
+    } else {
+      showToastMessage('File loaded successfully')
+    }
+  }
+
+  if (extension === 'csv') {
+    reader.readAsText(file)
+  } else {
+    reader.readAsArrayBuffer(file)
+  }
+}
+
+const handleImportData = async () => {
+  if (!importRows.length) {
+    showToastMessage('Please upload a file first', 'error')
+    return
+  }
+
+  if (importErrors.length > 0) {
+    showToastMessage('Fix validation errors before importing', 'error')
+    return
+  }
+
+  try {
+    const endpoint =
+      importType === 'invoices'
+        ? 'invoices'
+        : importType === 'expenses'
+        ? 'expenses'
+        : 'salaries'
+
+    const createdItems = []
+
+    for (const row of importRows) {
+      const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(row),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Import failed')
+      }
+
+      createdItems.push(result.data || result)
+    }
+
+    if (importType === 'invoices') {
+      setInvoices((prev) => [...createdItems.reverse(), ...prev])
+    } else if (importType === 'expenses') {
+      setExpenses((prev) => [...createdItems.reverse(), ...prev])
+    } else {
+      setSalaries((prev) => [...createdItems.reverse(), ...prev])
+    }
+
+    setImportRows([])
+    setImportFileName('')
+    setImportErrors([])
+    showToastMessage('Data imported successfully')
+  } catch (err) {
+    showToastMessage(err.message, 'error')
+  }
+}
+
+const renderImportTab = () => (
+  <div className="import-panel">
+    <div className="import-header">
+      <div>
+        <h3>Import Financial Data</h3>
+        <p>Upload CSV or Excel files to insert invoices, expenses or salaries.</p>
+      </div>
+      <span className="import-badge">CSV / Excel</span>
+    </div>
+
+    <div className="import-controls">
+      <div className="import-field">
+        <label>Dataset Type</label>
+        <select
+          value={importType}
+          onChange={(e) => {
+            setImportType(e.target.value)
+            setImportRows([])
+            setImportErrors([])
+            setImportFileName('')
+          }}
+        >
+          <option value="invoices">Invoices</option>
+          <option value="expenses">Expenses</option>
+          <option value="salaries">Salaries</option>
+        </select>
+      </div>
+
+      <div className="import-field">
+        <label>Upload File</label>
+        <input type="file" accept=".csv,.xlsx,.xls" onChange={handleImportFile} />
+      </div>
+
+      <button className="import-btn" onClick={handleImportData}>
+        Import Data
+      </button>
+    </div>
+
+    <div className="import-requirements">
+      <strong>Required columns:</strong>{' '}
+      {requiredColumns[importType].join(', ')}
+    </div>
+
+    {importFileName && (
+      <p className="import-file-name">Selected file: {importFileName}</p>
+    )}
+
+    {importErrors.length > 0 && (
+      <div className="import-errors">
+        {importErrors.slice(0, 5).map((err, index) => (
+          <p key={index}>{err}</p>
+        ))}
+      </div>
+    )}
+
+    {importRows.length > 0 && (
+      <div className="import-preview">
+        <h4>Preview</h4>
+        <table>
+          <thead>
+            <tr>
+              {Object.keys(importRows[0]).map((key) => (
+                <th key={key}>{key}</th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {importRows.slice(0, 10).map((row, index) => (
+              <tr key={index}>
+                {Object.keys(importRows[0]).map((key) => (
+                  <td key={key}>{row[key] || '-'}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )}
+  </div>
+)
 
   return (
     <div className="fa-page">

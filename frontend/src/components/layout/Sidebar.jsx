@@ -2,9 +2,38 @@ import { removeToken, getCurrentUserRole } from '../../services/auth'
 import { NavLink, useNavigate } from 'react-router-dom'
 import './Sidebar.css'
 
+const translations = {
+  English: {
+    subtitle: 'Financial Support System',
+    dashboard: 'Dashboard',
+    transactions: 'Financial Transactions',
+    masterData: 'Master Data',
+    powerbi: 'Power BI',
+    financialAnalysis: 'Financial Analysis',
+    aiAnalysis: 'AI Analysis',
+    userManagement: 'User Management',
+    settings: 'Settings',
+    logout: 'Logout',
+  },
+  French: {
+    subtitle: 'Système d’aide financière',
+    dashboard: 'Tableau de bord',
+    transactions: 'Transactions financières',
+    masterData: 'Données de base',
+    powerbi: 'Power BI',
+    financialAnalysis: 'Analyse financière',
+    aiAnalysis: 'Analyse IA',
+    userManagement: 'Gestion des utilisateurs',
+    settings: 'Paramètres',
+    logout: 'Déconnexion',
+  },
+}
+
 function Sidebar() {
   const navigate = useNavigate()
   const role = getCurrentUserRole()
+  const language = localStorage.getItem('language') || 'English'
+  const t = translations[language] || translations.English
 
   const handleLogout = () => {
     removeToken()
@@ -14,43 +43,43 @@ function Sidebar() {
   const links = [
     {
       to: '/dashboard',
-      label: 'Dashboard',
+      label: t.dashboard,
       roles: ['Admin', 'Manager', 'Finance'],
     },
     {
       to: '/financial-transactions',
-      label: 'Financial Transactions',
+      label: t.transactions,
       roles: ['Admin', 'Finance'],
     },
     {
       to: '/master-data',
-      label: 'Master Data',
+      label: t.masterData,
       roles: ['Admin', 'Finance'],
     },
     {
       to: '/powerbi',
-      label: 'Power BI',
+      label: t.powerbi,
       roles: ['Admin', 'Manager', 'Finance'],
     },
     {
       to: '/financial-analysis',
-      label: 'Financial Analysis',
+      label: t.financialAnalysis,
       roles: ['Admin', 'Manager', 'Finance'],
     },
     {
       to: '/ai-analysis',
-      label: 'AI Analysis',
+      label: t.aiAnalysis,
       roles: ['Admin', 'Manager'],
     },
     {
       to: '/user-management',
-      label: 'User Management',
+      label: t.userManagement,
       roles: ['Admin'],
     },
     {
       to: '/settings',
-      label: 'Settings',
-      roles: ['Admin'],
+      label: t.settings,
+      roles: ['Admin', 'Manager', 'Finance'],
     },
   ]
 
@@ -58,7 +87,7 @@ function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-brand">
         <h2>Tradrly</h2>
-        <p>Financial Support System</p>
+        <p>{t.subtitle}</p>
       </div>
 
       <nav className="sidebar-nav">
@@ -79,7 +108,7 @@ function Sidebar() {
 
       <div className="sidebar-footer">
         <button className="sidebar-logout" onClick={handleLogout}>
-          Logout
+          {t.logout}
         </button>
       </div>
     </aside>
