@@ -1,46 +1,137 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import './Settings.css'
 import PageHeader from '../common/PageHeader'
-import { getCurrentUser, getCurrentUserRole } from '../../services/auth'
 import Toast from '../common/Toast'
+import { getCurrentUser, getCurrentUserRole } from '../../services/auth'
+import { canAccessResource, ROLES } from '../../services/permissions'
 
-const getStoredPreference = (key, fallback) => {
+const STORAGE_KEY = 'tradrly.settings.v2'
+
+const DEFAULT_SETTINGS = {
+  language: 'fr',
+  appearance: 'light',
+  density: 'comfortable',
+  defaultPage: 'dashboard',
+  sessionTimeout: 45,
+  notifications: true,
+  emailDigest: false,
+  powerBiMode: 'embedded',
+  refreshMode: 'manual',
+  currency: 'USD',
+  fiscalYear: 'calendar',
+  financeApprovalThreshold: 25000,
+  managerReportView: 'executive',
+  simulationBias: 'balanced',
+  auditRetention: '90',
+  requireStrongPasswords: true,
+}
+
+const roleLandingPages = {
+  [ROLES.ADMIN]: [
+    ['dashboard', 'Tableau de bord'],
+    ['user-management', 'Gestion des utilisateurs'],
+    ['master-data', 'Donnees de base'],
+    ['powerbi', 'Power BI'],
+  ],
+  [ROLES.FINANCE]: [
+    ['dashboard', 'Tableau de bord'],
+    ['financial-transactions', 'Transactions financieres'],
+    ['financial-analysis', 'Analyse financiere'],
+    ['master-data', 'Donnees de base'],
+  ],
+  [ROLES.MANAGER]: [
+    ['dashboard', 'Tableau de bord'],
+    ['powerbi', 'Power BI'],
+    ['ai-analysis', 'Analyse IA'],
+    ['financial-analysis', 'Analyse financiere'],
+  ],
+}
+
+const roleProfiles = {
+  [ROLES.ADMIN]: {
+    icon: 'admin_panel_settings',
+    label: 'Administration systeme',
+    description: 'Controle de la securite, des utilisateurs et de la gouvernance.',
+    accent: 'admin',
+  },
+  [ROLES.FINANCE]: {
+    icon: 'account_balance_wallet',
+    label: 'Operations financieres',
+    description: 'Parametres comptables, rapports financiers et preferences de controle.',
+    accent: 'finance',
+  },
+  [ROLES.MANAGER]: {
+    icon: 'query_stats',
+    label: 'Pilotage decisionnel',
+    description: 'Preferences de lecture, BI, simulations et indicateurs executifs.',
+    accent: 'manager',
+  },
+}
+
+const modules = [
+  ['clients', 'Clients'],
+  ['projects', 'Projets'],
+  ['invoices', 'Factures'],
+  ['expenses', 'Depenses'],
+  ['salaries', 'Salaires'],
+  ['users', 'Utilisateurs'],
+  ['powerbi', 'Power BI'],
+  ['ai', 'Analyse IA'],
+]
+
+const readStoredSettings = () => {
   try {
-    return localStorage.getItem(key) || fallback
+    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
+    const legacyLanguage = localStorage.getItem('language')
+    const settings = { ...DEFAULT_SETTINGS, ...stored }
+    const language = settings.language || legacyLanguage
+
+    return {
+      ...settings,
+      language: language === 'English' || language === 'en' ? 'en' : 'fr',
+    }
   } catch {
-    return fallback
+    return DEFAULT_SETTINGS
   }
 }
 
+const persistSettings = (settings) => {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings))
+  localStorage.setItem('language', settings.language === 'fr' ? 'French' : 'English')
+  localStorage.setItem('appearance', settings.appearance)
+  localStorage.setItem('density', settings.density)
+  localStorage.setItem('defaultPage', settings.defaultPage)
+  localStorage.setItem('sessionTimeout', String(settings.sessionTimeout))
+  localStorage.setItem('refreshMode', settings.refreshMode)
+  localStorage.setItem('reportView', settings.managerReportView)
+}
+
 function Settings() {
-  const role = getCurrentUserRole()
+  const role = getCurrentUserRole() || ROLES.MANAGER
   const user = getCurrentUser()
+  const [settings, setSettings] = useState(readStoredSettings)
   const [toast, setToast] = useState(null)
 
-  const isAdmin = role === 'Admin'
-  const isFinance = role === 'Finance'
-  const isManager = role === 'Manager'
+  const profile = roleProfiles[role] || roleProfiles[ROLES.MANAGER]
+  const isAdmin = role === ROLES.ADMIN
+  const isFinance = role === ROLES.FINANCE
+  const isManager = role === ROLES.MANAGER
+  const isFrench = settings.language === 'fr' || settings.language === 'French'
 
-  const [settings, setSettings] = useState({
-    username: user?.username || 'Current User',
-    email: user?.email || 'user@tradrly.local',
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-    defaultPage: getStoredPreference(
-      'defaultPage',
-      isFinance ? 'financial-transactions' : 'dashboard'
-    ),
-    density: getStoredPreference('density', 'comfortable'),
-    language: getStoredPreference('language', 'English'),
-    appearance: getStoredPreference('appearance', 'light'),
-    sessionTimeout: Number(getStoredPreference('sessionTimeout', '45')),
-    refreshMode: getStoredPreference('refreshMode', 'manual'),
-    reportView: getStoredPreference(
-      'reportView',
-      isFinance ? 'Financial Reports' : 'Executive Overview'
-    ),
-  })
+  const landingPages = roleLandingPages[role] || roleLandingPages[ROLES.MANAGER]
+  const defaultPageValue = landingPages.some(([value]) => value === settings.defaultPage)
+    ? settings.defaultPage
+    : landingPages[0]?.[0] || 'dashboard'
+
+  const accessRows = useMemo(() => {
+    return modules.map(([resource, label]) => ({
+      resource,
+      label,
+      allowed: canAccessResource(resource, role),
+    }))
+  }, [role])
+
+  const allowedCount = accessRows.filter((item) => item.allowed).length
 
   useEffect(() => {
     document.body.classList.toggle('dark-mode', settings.appearance === 'dark')
@@ -50,459 +141,387 @@ function Settings() {
     )
   }, [settings.appearance, settings.density])
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type })
-    setTimeout(() => setToast(null), 2500)
-  }
-
   const updateSetting = (key, value) => {
     setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
-  const handleSavePreferences = () => {
-    localStorage.setItem('defaultPage', settings.defaultPage)
-    localStorage.setItem('density', settings.density)
-    localStorage.setItem('language', settings.language)
-    localStorage.setItem('appearance', settings.appearance)
-    localStorage.setItem('sessionTimeout', String(settings.sessionTimeout))
-    localStorage.setItem('refreshMode', settings.refreshMode)
-    localStorage.setItem('reportView', settings.reportView)
-
-    showToast('Preferences saved successfully')
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type })
+    setTimeout(() => setToast(null), 2600)
   }
 
-  const handleChangePassword = () => {
-    if (!settings.currentPassword || !settings.newPassword || !settings.confirmPassword) {
-      showToast('Please fill all password fields', 'error')
-      return
-    }
-
-    if (settings.newPassword !== settings.confirmPassword) {
-      showToast('New passwords do not match', 'error')
-      return
-    }
-
-    showToast('Password change prepared. Backend endpoint can be connected later.')
-    updateSetting('currentPassword', '')
-    updateSetting('newPassword', '')
-    updateSetting('confirmPassword', '')
+  const handleSave = () => {
+    persistSettings(settings)
+    showToast(isFrench ? 'Parametres enregistres' : 'Settings saved')
   }
 
-  const pageText = {
-    title: settings.language === 'French' ? 'Paramètres' : 'Settings',
-    subtitle:
-      settings.language === 'French'
-        ? `Compte, préférences et configuration selon le rôle ${role || 'Utilisateur'}`
-        : `Account, preferences and role-based configuration for ${role || 'User'}`,
-    save: settings.language === 'French' ? 'Enregistrer' : 'Save Preferences',
+  const handleReset = () => {
+    const resetSettings = {
+      ...DEFAULT_SETTINGS,
+      defaultPage: landingPages[0]?.[0] || 'dashboard',
+      language: isFrench ? 'fr' : 'en',
+    }
+
+    setSettings(resetSettings)
+    persistSettings(resetSettings)
+    showToast(isFrench ? 'Preferences reinitialisees' : 'Preferences reset')
+  }
+
+  const handleExport = () => {
+    const payload = {
+      exportedAt: new Date().toISOString(),
+      role,
+      user: {
+        username: user?.username,
+        email: user?.email,
+      },
+      settings,
+      access: accessRows,
+    }
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json',
+    })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `tradrly-settings-${role.toLowerCase()}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+    showToast(isFrench ? 'Export des parametres pret' : 'Settings export ready')
+  }
+
+  const copy = {
+    title: isFrench ? 'Parametres' : 'Settings',
+    subtitle: isFrench
+      ? `Preferences de l'espace Tradrly adaptees au role ${role}`
+      : `Tradrly workspace preferences adapted to the ${role} role`,
+    save: isFrench ? 'Enregistrer' : 'Save',
+    reset: isFrench ? 'Reinitialiser' : 'Reset',
+    export: isFrench ? 'Exporter' : 'Export',
   }
 
   return (
     <div className="settings-page">
       <PageHeader
-        title={pageText.title}
-        subtitle={pageText.subtitle}
+        kicker={isFrench ? 'Espace de controle' : 'Control Space'}
+        title={copy.title}
+        subtitle={copy.subtitle}
         right={
-          <button className="primary-btn" onClick={handleSavePreferences}>
-            {pageText.save}
-          </button>
+          <div className="settings-actions">
+            <button className="settings-ghost-btn" onClick={handleReset}>
+              <span className="material-symbols-outlined">restart_alt</span>
+              {copy.reset}
+            </button>
+            <button className="settings-secondary-btn" onClick={handleExport}>
+              <span className="material-symbols-outlined">download</span>
+              {copy.export}
+            </button>
+            <button className="settings-primary-btn" onClick={handleSave}>
+              <span className="material-symbols-outlined">check</span>
+              {copy.save}
+            </button>
+          </div>
         }
       />
 
-      <section className="settings-profile-card">
-        <div className="settings-profile-left">
-          <div className="settings-profile-avatar">
-            {(settings.username || 'U').slice(0, 2).toUpperCase()}
+      <section className={`settings-hero settings-hero-${profile.accent}`}>
+        <div className="settings-hero-main">
+          <div className="settings-role-icon">
+            <span className="material-symbols-outlined">{profile.icon}</span>
           </div>
-
           <div>
-            <h3>{settings.username}</h3>
-            <p>{settings.email}</p>
+            <span className="settings-eyebrow">{role}</span>
+            <h3>{profile.label}</h3>
+            <p>{profile.description}</p>
           </div>
         </div>
 
-        <div className="settings-profile-meta">
-          <span>Current Role</span>
-          <strong>{role || 'Unknown'}</strong>
+        <div className="settings-hero-user">
+          <span>{user?.email || 'session@tradrly.local'}</span>
+          <strong>{user?.username || user?.name || 'Utilisateur Tradrly'}</strong>
         </div>
       </section>
 
-      <div className="settings-note">
-        Role-based configuration is applied dynamically based on your system privileges.
-      </div>
-
-      <section className="settings-overview">
-        <div className="settings-overview-card">
-          <p>Language</p>
-          <h3>{settings.language}</h3>
-          <span>Interface preference stored locally</span>
+      <section className="settings-kpi-grid">
+        <div className="settings-kpi-card">
+          <span className="material-symbols-outlined">verified_user</span>
+          <div>
+            <p>{isFrench ? 'Modules autorises' : 'Allowed modules'}</p>
+            <strong>{allowedCount}/{modules.length}</strong>
+          </div>
         </div>
 
-        <div className="settings-overview-card">
-          <p>Appearance</p>
-          <h3>{settings.appearance === 'dark' ? 'Dark' : 'Light'}</h3>
-          <span>Applies globally to the workspace</span>
+        <div className="settings-kpi-card">
+          <span className="material-symbols-outlined">schedule</span>
+          <div>
+            <p>{isFrench ? 'Session' : 'Session'}</p>
+            <strong>{settings.sessionTimeout} min</strong>
+          </div>
         </div>
 
-        <div className="settings-overview-card">
-          <p>Density</p>
-          <h3>{settings.density}</h3>
-          <span>Controls table and layout spacing</span>
+        <div className="settings-kpi-card">
+          <span className="material-symbols-outlined">language</span>
+          <div>
+            <p>{isFrench ? 'Langue' : 'Language'}</p>
+            <strong>{isFrench ? 'Francais' : 'English'}</strong>
+          </div>
+        </div>
+
+        <div className="settings-kpi-card">
+          <span className="material-symbols-outlined">dashboard_customize</span>
+          <div>
+            <p>{isFrench ? 'Page initiale' : 'Landing page'}</p>
+            <strong>{landingPages.find(([value]) => value === defaultPageValue)?.[1] || 'Dashboard'}</strong>
+          </div>
         </div>
       </section>
 
-      <div className="settings-grid-top">
-        <section className="general-card">
-          <div className="section-head">
-            <h4>Account Information</h4>
-            <p>Basic identity information used inside the application.</p>
-          </div>
-
-          <div className="two-cols">
-            <div className="form-group">
-              <label>Username</label>
-              <input
-                type="text"
-                value={settings.username}
-                onChange={(e) => updateSetting('username', e.target.value)}
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                value={settings.email}
-                onChange={(e) => updateSetting('email', e.target.value)}
-              />
+      <div className="settings-main-grid">
+        <section className="settings-panel settings-panel-wide">
+          <div className="settings-section-head">
+            <span className="material-symbols-outlined">tune</span>
+            <div>
+              <h4>{isFrench ? 'Preferences de l’interface' : 'Interface Preferences'}</h4>
+              <p>{isFrench ? 'Ces options restent locales a votre poste.' : 'These options are stored locally on this workstation.'}</p>
             </div>
           </div>
 
-          <div className="settings-note">
-            Account updates are currently stored locally in the interface. Backend profile update can be connected later.
+          <div className="settings-form-grid">
+            <label className="settings-field">
+              <span>{isFrench ? 'Langue' : 'Language'}</span>
+              <select value={settings.language} onChange={(e) => updateSetting('language', e.target.value)}>
+                <option value="fr">Francais</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+
+            <label className="settings-field">
+              <span>{isFrench ? 'Theme' : 'Theme'}</span>
+              <select value={settings.appearance} onChange={(e) => updateSetting('appearance', e.target.value)}>
+                <option value="light">{isFrench ? 'Clair' : 'Light'}</option>
+                <option value="dark">{isFrench ? 'Sombre' : 'Dark'}</option>
+              </select>
+            </label>
+
+            <label className="settings-field">
+              <span>{isFrench ? 'Densite' : 'Density'}</span>
+              <select value={settings.density} onChange={(e) => updateSetting('density', e.target.value)}>
+                <option value="comfortable">{isFrench ? 'Confortable' : 'Comfortable'}</option>
+                <option value="compact">{isFrench ? 'Compacte' : 'Compact'}</option>
+              </select>
+            </label>
+
+            <label className="settings-field">
+              <span>{isFrench ? 'Page par defaut' : 'Default page'}</span>
+              <select value={defaultPageValue} onChange={(e) => updateSetting('defaultPage', e.target.value)}>
+                {landingPages.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
           </div>
         </section>
 
-        {isAdmin ? (
-          <section className="security-access-card">
-            <div className="section-head">
-              <h4>Security Administration</h4>
-              <p>Authentication and access-control settings reserved for administrators.</p>
+        <section className="settings-panel">
+          <div className="settings-section-head">
+            <span className="material-symbols-outlined">notifications</span>
+            <div>
+              <h4>{isFrench ? 'Notifications' : 'Notifications'}</h4>
+              <p>{isFrench ? 'Alertes visibles dans votre espace.' : 'Alerts shown in your workspace.'}</p>
             </div>
+          </div>
 
-            <div className="toggle-row">
+          <div className="settings-toggle-list">
+            <button
+              className={`settings-toggle-row ${settings.notifications ? 'is-on' : ''}`}
+              onClick={() => updateSetting('notifications', !settings.notifications)}
+            >
+              <span>{isFrench ? 'Alertes applicatives' : 'In-app alerts'}</span>
+              <i />
+            </button>
+            <button
+              className={`settings-toggle-row ${settings.emailDigest ? 'is-on' : ''}`}
+              onClick={() => updateSetting('emailDigest', !settings.emailDigest)}
+            >
+              <span>{isFrench ? 'Resume email' : 'Email digest'}</span>
+              <i />
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <div className="settings-main-grid">
+        {isAdmin && (
+          <section className="settings-panel settings-panel-dark">
+            <div className="settings-section-head">
+              <span className="material-symbols-outlined">shield_lock</span>
               <div>
-                <strong>JWT Authentication</strong>
-                <p>Secure token-based login is enabled.</p>
-              </div>
-              <div className="toggle on">
-                <div></div>
+                <h4>{isFrench ? 'Gouvernance administrateur' : 'Administrator Governance'}</h4>
+                <p>{isFrench ? 'Regles visibles seulement pour les administrateurs.' : 'Controls visible only to administrators.'}</p>
               </div>
             </div>
 
-            <div className="toggle-row">
-              <div>
-                <strong>Role-Based Access</strong>
-                <p>Navigation is filtered by user role.</p>
-              </div>
-              <div className="toggle on">
-                <div></div>
-              </div>
-            </div>
+            <label className="settings-field">
+              <span>{isFrench ? 'Expiration de session' : 'Session timeout'}</span>
+              <input
+                type="range"
+                min="15"
+                max="120"
+                step="15"
+                value={settings.sessionTimeout}
+                onChange={(e) => updateSetting('sessionTimeout', Number(e.target.value))}
+              />
+              <strong>{settings.sessionTimeout} min</strong>
+            </label>
 
-            <div className="slider-box">
-              <label>Session Timeout</label>
-              <div className="slider-row">
-                <input
-                  type="range"
-                  min="15"
-                  max="120"
-                  value={settings.sessionTimeout}
-                  onChange={(e) => updateSetting('sessionTimeout', Number(e.target.value))}
-                />
-                <span>{settings.sessionTimeout}m</span>
-              </div>
-            </div>
-          </section>
-        ) : (
-          <section className="alerts-card-settings">
-            <div className="section-head">
-              <h4>Access Summary</h4>
-              <p>Your role determines which settings and modules are available.</p>
-            </div>
+            <label className="settings-field">
+              <span>{isFrench ? 'Conservation audit' : 'Audit retention'}</span>
+              <select value={settings.auditRetention} onChange={(e) => updateSetting('auditRetention', e.target.value)}>
+                <option value="30">30 jours</option>
+                <option value="90">90 jours</option>
+                <option value="180">180 jours</option>
+              </select>
+            </label>
 
-            <div className="settings-status-list">
-              <div className="settings-status-item">
-                <span>Security Parameters</span>
-                <strong>Read-only</strong>
-              </div>
-              <div className="settings-status-item">
-                <span>Managed By</span>
-                <strong>Administrator</strong>
-              </div>
-              <div className="settings-status-item">
-                <span>Current Access</span>
-                <strong>{isFinance ? 'Financial Operations' : 'Decision Dashboards'}</strong>
-              </div>
-            </div>
+            <button
+              className={`settings-toggle-row ${settings.requireStrongPasswords ? 'is-on' : ''}`}
+              onClick={() => updateSetting('requireStrongPasswords', !settings.requireStrongPasswords)}
+            >
+              <span>{isFrench ? 'Mots de passe renforces' : 'Strong password policy'}</span>
+              <i />
+            </button>
           </section>
         )}
-      </div>
 
-      <div className="settings-grid-mid">
-        <section className="general-card">
-          <div className="section-head">
-            <h4>Change Password</h4>
-            <p>Update your access credentials.</p>
-          </div>
-
-          <div className="form-group">
-            <label>Current Password</label>
-            <input
-              type="password"
-              value={settings.currentPassword}
-              onChange={(e) => updateSetting('currentPassword', e.target.value)}
-              placeholder="Enter current password"
-            />
-          </div>
-
-          <div className="two-cols">
-            <div className="form-group">
-              <label>New Password</label>
-              <input
-                type="password"
-                value={settings.newPassword}
-                onChange={(e) => updateSetting('newPassword', e.target.value)}
-                placeholder="Enter new password"
-              />
-            </div>
-
-            <div className="form-group">
-              <label>Confirm Password</label>
-              <input
-                type="password"
-                value={settings.confirmPassword}
-                onChange={(e) => updateSetting('confirmPassword', e.target.value)}
-                placeholder="Confirm new password"
-              />
-            </div>
-          </div>
-
-          <button className="secondary-btn" onClick={handleChangePassword}>
-            Update Password
-          </button>
-        </section>
-
-        <section className="alerts-card-settings">
-          <div className="section-head">
-            <h4>{isFinance ? 'Financial Preferences' : 'Display Preferences'}</h4>
-            <p>Customize how the cockpit opens and displays information.</p>
-          </div>
-
-          <div className="form-group">
-            <label>Default Landing Page</label>
-            <select
-              value={settings.defaultPage}
-              onChange={(e) => updateSetting('defaultPage', e.target.value)}
-            >
-              {(isAdmin || isManager) && <option value="dashboard">Dashboard</option>}
-              {(isAdmin || isFinance) && <option value="financial-transactions">Financial Transactions</option>}
-              {(isAdmin || isFinance) && <option value="master-data">Master Data</option>}
-              {(isAdmin || isManager || isFinance) && <option value="financial-analysis">Financial Analysis</option>}
-              {(isAdmin || isManager || isFinance) && <option value="powerbi">Power BI</option>}
-              {isAdmin && <option value="user-management">User Management</option>}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Dashboard Density</label>
-            <select
-              value={settings.density}
-              onChange={(e) => updateSetting('density', e.target.value)}
-            >
-              <option value="comfortable">Comfortable</option>
-              <option value="compact">Compact</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Language</label>
-            <select
-              value={settings.language}
-              onChange={(e) => updateSetting('language', e.target.value)}
-            >
-              <option value="English">English</option>
-              <option value="French">French</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>Appearance</label>
-            <select
-              value={settings.appearance}
-              onChange={(e) => updateSetting('appearance', e.target.value)}
-            >
-              <option value="light">Light Mode</option>
-              <option value="dark">Dark Mode</option>
-            </select>
-          </div>
-        </section>
-      </div>
-
-      <div className="settings-grid-mid">
-        {(isAdmin || isFinance) && (
-          <section className="integration-card">
-            <div className="section-head">
-              <h4>Data & Reports</h4>
-              <p>Connection status for backend services and reporting layer.</p>
-            </div>
-
-            <div className="settings-status-list">
-              <div className="settings-status-item">
-                <span>Backend API</span>
-                <strong className="status-ok">Connected</strong>
-              </div>
-
-              <div className="settings-status-item">
-                <span>Database</span>
-                <strong className="status-ok">PostgreSQL</strong>
-              </div>
-
-              <div className="settings-status-item">
-                <span>Power BI Reports</span>
-                <strong className={isAdmin ? 'status-ok' : 'status-pending'}>
-                  {isAdmin ? 'Configured' : 'Read-only'}
-                </strong>
+        {isFinance && (
+          <section className="settings-panel settings-panel-dark">
+            <div className="settings-section-head">
+              <span className="material-symbols-outlined">payments</span>
+              <div>
+                <h4>{isFrench ? 'Parametres finance' : 'Finance Settings'}</h4>
+                <p>{isFrench ? 'Preferences reservees aux operations financieres.' : 'Preferences reserved for financial operations.'}</p>
               </div>
             </div>
 
-            <div className="integration-panel">
-              <p>Report Refresh Mode</p>
+            <div className="settings-form-grid single">
+              <label className="settings-field">
+                <span>{isFrench ? 'Devise de reference' : 'Reference currency'}</span>
+                <select value={settings.currency} onChange={(e) => updateSetting('currency', e.target.value)}>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                  <option value="MAD">MAD</option>
+                  <option value="TND">TND</option>
+                </select>
+              </label>
 
-              <div className="freq-buttons">
-                <button
-                  className={settings.refreshMode === 'manual' ? 'active' : ''}
-                  onClick={() => updateSetting('refreshMode', 'manual')}
-                >
-                  Manual
-                </button>
+              <label className="settings-field">
+                <span>{isFrench ? 'Exercice fiscal' : 'Fiscal year'}</span>
+                <select value={settings.fiscalYear} onChange={(e) => updateSetting('fiscalYear', e.target.value)}>
+                  <option value="calendar">{isFrench ? 'Annee civile' : 'Calendar year'}</option>
+                  <option value="custom">{isFrench ? 'Exercice personnalise' : 'Custom fiscal year'}</option>
+                </select>
+              </label>
 
-                <button
-                  className={settings.refreshMode === 'on-demand' ? 'active' : ''}
-                  onClick={() => updateSetting('refreshMode', 'on-demand')}
-                >
-                  On Demand
-                </button>
-
-                <button disabled>
-                  Scheduled Later
-                </button>
-              </div>
+              <label className="settings-field">
+                <span>{isFrench ? 'Seuil de revue' : 'Review threshold'}</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={settings.financeApprovalThreshold}
+                  onChange={(e) => updateSetting('financeApprovalThreshold', Number(e.target.value))}
+                />
+              </label>
             </div>
           </section>
         )}
 
         {isManager && (
-          <section className="integration-card">
-            <div className="section-head">
-              <h4>Manager Report Preferences</h4>
-              <p>Decision-oriented reporting preferences for dashboard consumption.</p>
+          <section className="settings-panel settings-panel-dark">
+            <div className="settings-section-head">
+              <span className="material-symbols-outlined">monitoring</span>
+              <div>
+                <h4>{isFrench ? 'Pilotage manager' : 'Manager Cockpit'}</h4>
+                <p>{isFrench ? 'Reglages pour la lecture executive et les simulations.' : 'Settings for executive reading and simulations.'}</p>
+              </div>
             </div>
 
-            <div className="form-group">
-              <label>Preferred Report View</label>
-              <select
-                value={settings.reportView}
-                onChange={(e) => updateSetting('reportView', e.target.value)}
-              >
-                <option value="Executive Overview">Executive Overview</option>
-                <option value="Financial Analysis">Financial Analysis</option>
-                <option value="Project Profitability">Project Profitability</option>
+            <label className="settings-field">
+              <span>{isFrench ? 'Vue de rapport' : 'Report view'}</span>
+              <select value={settings.managerReportView} onChange={(e) => updateSetting('managerReportView', e.target.value)}>
+                <option value="executive">{isFrench ? 'Synthese executive' : 'Executive overview'}</option>
+                <option value="projects">{isFrench ? 'Rentabilite projets' : 'Project profitability'}</option>
+                <option value="risk">{isFrench ? 'Risques et ecarts' : 'Risks and gaps'}</option>
               </select>
-            </div>
+            </label>
 
-            <div className="settings-status-list">
-              <div className="settings-status-item">
-                <span>Power BI Access</span>
-                <strong className="status-pending">Read-only</strong>
-              </div>
-              <div className="settings-status-item">
-                <span>Data Editing</span>
-                <strong>Restricted</strong>
-              </div>
-            </div>
+            <label className="settings-field">
+              <span>{isFrench ? 'Mode simulation' : 'Simulation mode'}</span>
+              <select value={settings.simulationBias} onChange={(e) => updateSetting('simulationBias', e.target.value)}>
+                <option value="balanced">{isFrench ? 'Equilibre' : 'Balanced'}</option>
+                <option value="conservative">{isFrench ? 'Conservateur' : 'Conservative'}</option>
+                <option value="growth">{isFrench ? 'Croissance' : 'Growth'}</option>
+              </select>
+            </label>
           </section>
         )}
 
-        <section className="alerts-card-settings">
-          <div className="section-head">
-            <h4>About Application</h4>
-            <p>Technical information about the current workspace.</p>
+        <section className="settings-panel">
+          <div className="settings-section-head">
+            <span className="material-symbols-outlined">analytics</span>
+            <div>
+              <h4>{isFrench ? 'Rapports et BI' : 'Reports and BI'}</h4>
+              <p>{isFrench ? 'Ces options respectent les droits backend.' : 'These options respect backend permissions.'}</p>
+            </div>
           </div>
 
-          <div className="settings-about-list">
-            <div>
-              <span>Application</span>
-              <strong>Tradrly</strong>
-            </div>
-            <div>
-              <span>Version</span>
-              <strong>1.0.0</strong>
-            </div>
-            <div>
-              <span>Environment</span>
-              <strong>Desktop-ready / Web dev</strong>
-            </div>
-            <div>
-              <span>Frontend</span>
-              <strong>React + Vite</strong>
-            </div>
+          <div className="settings-segmented">
+            {['manual', 'on-demand', 'scheduled'].map((mode) => (
+              <button
+                key={mode}
+                className={settings.refreshMode === mode ? 'active' : ''}
+                disabled={mode === 'scheduled' && !isAdmin}
+                onClick={() => updateSetting('refreshMode', mode)}
+              >
+                {mode === 'manual' && (isFrench ? 'Manuel' : 'Manual')}
+                {mode === 'on-demand' && (isFrench ? 'A la demande' : 'On demand')}
+                {mode === 'scheduled' && (isFrench ? 'Planifie' : 'Scheduled')}
+              </button>
+            ))}
           </div>
+
+          <label className="settings-field">
+            <span>Power BI</span>
+            <select value={settings.powerBiMode} onChange={(e) => updateSetting('powerBiMode', e.target.value)}>
+              <option value="embedded">{isFrench ? 'Integre' : 'Embedded'}</option>
+              <option value="external">{isFrench ? 'Ouvrir externe' : 'Open externally'}</option>
+            </select>
+          </label>
         </section>
       </div>
 
-      <section className="changes-card">
-        <div className="changes-head">
-          <h4>Role Settings Scope</h4>
+      <section className="settings-panel">
+        <div className="settings-section-head">
+          <span className="material-symbols-outlined">key</span>
+          <div>
+            <h4>{isFrench ? 'Acces par module' : 'Module Access'}</h4>
+            <p>{isFrench ? 'Lecture basee sur les permissions backend actuelles.' : 'Readout based on current backend permissions.'}</p>
+          </div>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Settings Area</th>
-              <th>Admin</th>
-              <th>Finance</th>
-              <th>Manager</th>
-            </tr>
-          </thead>
-
-          <tbody>
-            <tr>
-              <td>Account Preferences</td>
-              <td>Editable</td>
-              <td>Editable</td>
-              <td>Editable</td>
-            </tr>
-            <tr>
-              <td>Security Parameters</td>
-              <td>Editable</td>
-              <td>Read-only</td>
-              <td>Read-only</td>
-            </tr>
-            <tr>
-              <td>Data & Reports</td>
-              <td>Editable</td>
-              <td>Editable</td>
-              <td>Read-only</td>
-            </tr>
-            <tr>
-              <td>User Management Access</td>
-              <td>Allowed</td>
-              <td>Restricted</td>
-              <td>Restricted</td>
-            </tr>
-          </tbody>
-        </table>
+        <div className="settings-access-grid">
+          {accessRows.map((item) => (
+            <div key={item.resource} className={`settings-access-item ${item.allowed ? 'allowed' : 'restricted'}`}>
+              <span className="material-symbols-outlined">
+                {item.allowed ? 'check_circle' : 'lock'}
+              </span>
+              <div>
+                <strong>{item.label}</strong>
+                <p>{item.allowed ? (isFrench ? 'Autorise' : 'Allowed') : (isFrench ? 'Restreint par role' : 'Restricted by role')}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </section>
 
       {toast && <Toast message={toast.message} type={toast.type} />}

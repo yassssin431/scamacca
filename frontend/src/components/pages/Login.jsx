@@ -34,7 +34,10 @@ function Login() {
         body: JSON.stringify(formData),
       })
 
-      const data = await response.json()
+      const contentType = response.headers.get('content-type') || ''
+      const data = contentType.includes('application/json')
+        ? await response.json()
+        : { message: await response.text() }
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed')
@@ -69,6 +72,12 @@ function Login() {
         </div>
 
         <div className="login-card">
+          <div className="login-card-rail" aria-hidden="true">
+            <span>01</span>
+            <span>JWT</span>
+            <span>RBAC</span>
+          </div>
+
           <div className="login-card-header">
             <span className="login-card-kicker">Welcome back</span>
             <h2>Secure Sign In</h2>
@@ -141,6 +150,11 @@ function Login() {
               <span className="material-symbols-outlined">arrow_forward</span>
             </button>
           </form>
+
+          <div className="login-trust-row">
+            <span><i /> Token protected</span>
+            <span><i /> Role-aware workspace</span>
+          </div>
         </div>
 
         <div className="login-footer">

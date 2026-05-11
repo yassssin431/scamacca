@@ -7,9 +7,237 @@ import Toast from '../common/Toast'
 import LoadingState from '../common/LoadingState'
 import EmptyState from '../common/EmptyState'
 import * as XLSX from 'xlsx'
+import { authFetch } from '../../services/authFetch'
+import { getCurrentUserRole } from '../../services/auth'
+import { canAccessResource, canCreateResource, canDeleteResource, canUpdateResource } from '../../services/permissions'
+
+const translations = {
+  English: {
+    pageTitle: 'Master Data',
+    pageSubtitle: 'Manage core reference entities used across the application',
+    entityDirectory: 'Entity Directory',
+    entitySubtitle: 'Centralized governance for reference data',
+    addNew: '+ Add New',
+    clients: 'Clients',
+    projects: 'Projects',
+    employees: 'Employees',
+    suppliers: 'Suppliers',
+    categories: 'Categories',
+    search: 'Search',
+    searchPlaceholder: 'Search records...',
+    status: 'Status',
+    allStatus: 'All Status',
+    active: 'Active',
+    completed: 'Completed',
+    pending: 'Pending',
+    from: 'From',
+    to: 'To',
+    min: 'Min',
+    max: 'Max',
+    any: 'Any',
+    reset: 'Reset',
+    exportExcel: 'Export Excel',
+    showing: 'Showing',
+    of: 'of',
+    records: 'records',
+    visibleRecords: 'visible records from',
+    totalClients: 'total clients',
+    totalProjects: 'total projects',
+    totalEmployees: 'total employees',
+    totalSuppliers: 'total suppliers',
+    totalCategories: 'total categories',
+    name: 'Name',
+    email: 'Email',
+    phone: 'Phone',
+    company: 'Company',
+    address: 'Address',
+    actions: 'Actions',
+    value: 'Value',
+    startDate: 'Start Date',
+    endDate: 'End Date',
+    firstName: 'First Name',
+    lastName: 'Last Name',
+    position: 'Position',
+    team: 'Team',
+    department: 'Department',
+    hireDate: 'Hire Date',
+    baseSalary: 'Base Salary',
+    description: 'Description',
+    usedInExpenses: 'Used In Expenses',
+    contactPerson: 'Contact Person',
+    edit: 'Edit',
+    delete: 'Delete',
+    create: 'Create',
+    save: 'Save',
+    cancel: 'Cancel',
+    loadingMasterData: 'Loading master data...',
+    masterDataFailed: 'Master data loading failed',
+    noClients: 'No clients found',
+    noClientsMessage: 'No client records match your current filters.',
+    noProjects: 'No projects found',
+    noProjectsMessage: 'No project records match your current filters.',
+    noEmployees: 'No employees found',
+    noEmployeesMessage: 'No employee records match your current filters.',
+    noCategories: 'No categories found',
+    noCategoriesMessage: 'No category records match your current filters.',
+    noSuppliers: 'No suppliers found',
+    noSuppliersMessage: 'No supplier records match your current filters.',
+    tabNotConnected: 'Tab not connected',
+    tabNotAvailable: 'This section is not available yet.',
+    totalClientsCard: 'Total Clients',
+    totalProjectsCard: 'Total Projects',
+    totalEmployeesCard: 'Total Employees',
+    totalCategoriesCard: 'Total Categories',
+    totalSuppliersCard: 'Total Suppliers',
+    visibleRecordsCard: 'Visible Records',
+    statusCard: 'Status',
+    connected: 'Connected',
+    addNewClient: 'Add New Client',
+    addNewProject: 'Add New Project',
+    addNewEmployee: 'Add New Employee',
+    addNewSupplier: 'Add New Supplier',
+    addNewCategory: 'Add New Category',
+    editClient: 'Edit Client',
+    editProject: 'Edit Project',
+    editEmployee: 'Edit Employee',
+    editSupplier: 'Edit Supplier',
+    editCategory: 'Edit Category',
+    projectName: 'Project Name',
+    totalValue: 'Total Value',
+    selectClient: 'Select Client',
+    selectCategory: 'Select Category',
+    selectSupplier: 'Select Supplier',
+    fileExported: 'Excel file exported successfully',
+    noExportData: 'No data available to export',
+    deleteTitle: 'Delete',
+    deleteMessage: 'Are you sure you want to delete this item? This action cannot be undone.',
+  },
+  French: {
+    pageTitle: 'Données de base',
+    pageSubtitle: 'Gérer les entités de référence utilisées dans l’application',
+    entityDirectory: 'Répertoire des entités',
+    entitySubtitle: 'Gouvernance centralisée des données de référence',
+    addNew: '+ Ajouter',
+    clients: 'Clients',
+    projects: 'Projets',
+    employees: 'Employés',
+    suppliers: 'Fournisseurs',
+    categories: 'Catégories',
+    search: 'Recherche',
+    searchPlaceholder: 'Rechercher des enregistrements...',
+    status: 'Statut',
+    allStatus: 'Tous les statuts',
+    active: 'Actif',
+    completed: 'Terminé',
+    pending: 'En attente',
+    from: 'De',
+    to: 'À',
+    min: 'Min',
+    max: 'Max',
+    any: 'Tous',
+    reset: 'Réinitialiser',
+    exportExcel: 'Exporter Excel',
+    showing: 'Affichage',
+    of: 'sur',
+    records: 'enregistrements',
+    visibleRecords: 'enregistrements visibles sur',
+    totalClients: 'clients au total',
+    totalProjects: 'projets au total',
+    totalEmployees: 'employés au total',
+    totalSuppliers: 'fournisseurs au total',
+    totalCategories: 'catégories au total',
+    name: 'Nom',
+    email: 'Email',
+    phone: 'Téléphone',
+    company: 'Entreprise',
+    address: 'Adresse',
+    actions: 'Actions',
+    value: 'Valeur',
+    startDate: 'Date début',
+    endDate: 'Date fin',
+    firstName: 'Prénom',
+    lastName: 'Nom',
+    position: 'Poste',
+    team: 'Equipe',
+    department: 'Departement',
+    hireDate: 'Date embauche',
+    baseSalary: 'Salaire de base',
+    description: 'Description',
+    usedInExpenses: 'Utilisée dans les dépenses',
+    contactPerson: 'Personne de contact',
+    edit: 'Modifier',
+    delete: 'Supprimer',
+    create: 'Créer',
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+    loadingMasterData: 'Chargement des données de base...',
+    masterDataFailed: 'Échec du chargement des données de base',
+    noClients: 'Aucun client trouvé',
+    noClientsMessage: 'Aucun client ne correspond aux filtres actuels.',
+    noProjects: 'Aucun projet trouvé',
+    noProjectsMessage: 'Aucun projet ne correspond aux filtres actuels.',
+    noEmployees: 'Aucun employé trouvé',
+    noEmployeesMessage: 'Aucun employé ne correspond aux filtres actuels.',
+    noCategories: 'Aucune catégorie trouvée',
+    noCategoriesMessage: 'Aucune catégorie ne correspond aux filtres actuels.',
+    noSuppliers: 'Aucun fournisseur trouvé',
+    noSuppliersMessage: 'Aucun fournisseur ne correspond aux filtres actuels.',
+    tabNotConnected: 'Onglet non connecté',
+    tabNotAvailable: 'Cette section n’est pas encore disponible.',
+    totalClientsCard: 'Total clients',
+    totalProjectsCard: 'Total projets',
+    totalEmployeesCard: 'Total employés',
+    totalCategoriesCard: 'Total catégories',
+    totalSuppliersCard: 'Total fournisseurs',
+    visibleRecordsCard: 'Enregistrements visibles',
+    statusCard: 'Statut',
+    connected: 'Connecté',
+    addNewClient: 'Ajouter un client',
+    addNewProject: 'Ajouter un projet',
+    addNewEmployee: 'Ajouter un employé',
+    addNewSupplier: 'Ajouter un fournisseur',
+    addNewCategory: 'Ajouter une catégorie',
+    editClient: 'Modifier client',
+    editProject: 'Modifier projet',
+    editEmployee: 'Modifier employé',
+    editSupplier: 'Modifier fournisseur',
+    editCategory: 'Modifier catégorie',
+    projectName: 'Nom du projet',
+    totalValue: 'Valeur totale',
+    selectClient: 'Sélectionner client',
+    selectCategory: 'Sélectionner catégorie',
+    selectSupplier: 'Sélectionner fournisseur',
+    fileExported: 'Fichier Excel exporté avec succès',
+    noExportData: 'Aucune donnée disponible pour l’export',
+    deleteTitle: 'Supprimer',
+    deleteMessage: 'Êtes-vous sûr de vouloir supprimer cet élément ? Cette action est irréversible.',
+  },
+}
 
 function MasterData() {
-  const [activeTab, setActiveTab] = useState('clients')
+  const language = localStorage.getItem('language') || 'English'
+  const t = translations[language] || translations.English
+  const role = getCurrentUserRole()
+  const canViewClients = canAccessResource('clients', role)
+  const canViewProjects = canAccessResource('projects', role)
+  const canViewEmployees = canAccessResource('employees', role)
+  const canViewCategories = canAccessResource('categories', role)
+  const canViewSuppliers = canAccessResource('fournisseurs', role)
+  const canViewExpenses = canAccessResource('expenses', role)
+
+  const defaultTab = canViewClients
+    ? 'clients'
+    : canViewProjects
+    ? 'projects'
+    : canViewEmployees
+    ? 'employees'
+    : canViewSuppliers
+    ? 'fournisseurs'
+    : canViewCategories
+    ? 'categories'
+    : 'clients'
+
+  const [activeTab, setActiveTab] = useState(defaultTab)
 
   const [clients, setClients] = useState([])
   const [projects, setProjects] = useState([])
@@ -62,6 +290,8 @@ function MasterData() {
     email: '',
     phone: '',
     position: '',
+    team: '',
+    department: '',
     hire_date: '',
     base_salary: '',
   })
@@ -109,6 +339,8 @@ function MasterData() {
     email: '',
     phone: '',
     position: '',
+    team: '',
+    department: '',
     hire_date: '',
     base_salary: '',
   })
@@ -125,6 +357,26 @@ function MasterData() {
     name: '',
     description: '',
   })
+
+  const visibleTabs = [
+    canViewClients && { id: 'clients', label: t.clients },
+    canViewProjects && { id: 'projects', label: t.projects },
+    canViewEmployees && { id: 'employees', label: t.employees },
+    canViewSuppliers && { id: 'fournisseurs', label: t.suppliers },
+    canViewCategories && { id: 'categories', label: t.categories },
+  ].filter(Boolean)
+
+  const activeResource =
+    activeTab === 'clients'
+      ? 'clients'
+      : activeTab === 'projects'
+      ? 'projects'
+      : activeTab === 'employees'
+      ? 'employees'
+      : activeTab === 'categories'
+      ? 'categories'
+      : 'fournisseurs'
+  const canCreateActive = canCreateResource(activeResource, role)
 
   const showToastMessage = (message, type = 'success') => {
     setToast({ message, type })
@@ -145,12 +397,12 @@ function MasterData() {
           fournisseursRes,
           expensesRes,
         ] = await Promise.all([
-          fetch(`${API_BASE_URL}/clients`),
-          fetch(`${API_BASE_URL}/projects`),
-          fetch(`${API_BASE_URL}/employees`),
-          fetch(`${API_BASE_URL}/categories`),
-          fetch(`${API_BASE_URL}/fournisseurs`),
-          fetch(`${API_BASE_URL}/expenses`),
+          canViewClients ? authFetch(`${API_BASE_URL}/clients`) : Promise.resolve({ ok: true, json: async () => [] }),
+          canViewProjects ? authFetch(`${API_BASE_URL}/projects`) : Promise.resolve({ ok: true, json: async () => [] }),
+          canViewEmployees ? authFetch(`${API_BASE_URL}/employees`) : Promise.resolve({ ok: true, json: async () => [] }),
+          canViewCategories ? authFetch(`${API_BASE_URL}/categories`) : Promise.resolve({ ok: true, json: async () => [] }),
+          canViewSuppliers ? authFetch(`${API_BASE_URL}/fournisseurs`) : Promise.resolve({ ok: true, json: async () => [] }),
+          canViewExpenses ? authFetch(`${API_BASE_URL}/expenses`) : Promise.resolve({ ok: true, json: async () => [] }),
         ])
 
         const clientsData = await clientsRes.json()
@@ -168,15 +420,15 @@ function MasterData() {
           !fournisseursRes.ok ||
           !expensesRes.ok
         ) {
-          throw new Error('Failed to fetch master data')
+          throw new Error(t.masterDataFailed)
         }
 
-        setClients(clientsData.data || [])
-        setProjects(projectsData.data || [])
-        setEmployees(employeesData.data || [])
-        setCategories(Array.isArray(categoriesData) ? categoriesData : categoriesData.data || [])
-        setFournisseurs(Array.isArray(fournisseursData) ? fournisseursData : fournisseursData.data || [])
-        setExpenses(expensesData.data || [])
+        setClients(Array.isArray(clientsData) ? clientsData : clientsData?.data || [])
+        setProjects(Array.isArray(projectsData) ? projectsData : projectsData?.data || [])
+        setEmployees(Array.isArray(employeesData) ? employeesData : employeesData?.data || [])
+        setCategories(Array.isArray(categoriesData) ? categoriesData : categoriesData?.data || [])
+        setFournisseurs(Array.isArray(fournisseursData) ? fournisseursData : fournisseursData?.data || [])
+        setExpenses(Array.isArray(expensesData) ? expensesData : expensesData?.data || [])
       } catch (err) {
         setError(err.message)
       } finally {
@@ -185,7 +437,7 @@ function MasterData() {
     }
 
     fetchData()
-  }, [])
+  }, [canViewClients, canViewProjects, canViewEmployees, canViewCategories, canViewSuppliers, canViewExpenses, t.masterDataFailed])
 
   const resetFilters = () => {
     setSearchTerm('')
@@ -347,7 +599,7 @@ function MasterData() {
 
   const exportToExcel = (rows, filename) => {
     if (!rows.length) {
-      showToastMessage('No data available to export', 'error')
+      showToastMessage(t.noExportData, 'error')
       return
     }
 
@@ -357,17 +609,17 @@ function MasterData() {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1')
     XLSX.writeFile(workbook, `${filename}.xlsx`)
 
-    showToastMessage('Excel file exported successfully')
+    showToastMessage(t.fileExported)
   }
 
 
   const renderControls = (type, rows, filename) => (
     <div className="master-controls">
       <div className="master-filter-field search">
-        <label>Search</label>
+        <label>{t.search}</label>
         <input
           type="text"
-          placeholder="Search records..."
+          placeholder={t.searchPlaceholder}
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value)
@@ -378,7 +630,7 @@ function MasterData() {
 
       {type === 'projects' && (
         <div className="master-filter-field">
-          <label>Status</label>
+          <label>{t.status}</label>
           <select
             value={statusFilter}
             onChange={(e) => {
@@ -386,16 +638,16 @@ function MasterData() {
               setCurrentPage(1)
             }}
           >
-            <option value="all">All Status</option>
-            <option value="Active">Active</option>
-            <option value="Completed">Completed</option>
-            <option value="Pending">Pending</option>
+            <option value="all">{t.allStatus}</option>
+            <option value="Active">{t.active}</option>
+            <option value="Completed">{t.completed}</option>
+            <option value="Pending">{t.pending}</option>
           </select>
         </div>
       )}
 
       <div className="master-filter-field">
-        <label>From</label>
+        <label>{t.from}</label>
         <input
           type="date"
           value={dateFrom}
@@ -407,7 +659,7 @@ function MasterData() {
       </div>
 
       <div className="master-filter-field">
-        <label>To</label>
+        <label>{t.to}</label>
         <input
           type="date"
           value={dateTo}
@@ -421,7 +673,7 @@ function MasterData() {
       {(type === 'projects' || type === 'employees' || type === 'categories') && (
         <>
           <div className="master-filter-field small">
-            <label>Min</label>
+            <label>{t.min}</label>
             <input
               type="number"
               placeholder="0"
@@ -434,10 +686,10 @@ function MasterData() {
           </div>
 
           <div className="master-filter-field small">
-            <label>Max</label>
+            <label>{t.max}</label>
             <input
               type="number"
-              placeholder="Any"
+              placeholder={t.any}
               value={maxValue}
               onChange={(e) => {
                 setMaxValue(e.target.value)
@@ -450,11 +702,11 @@ function MasterData() {
 
       <div className="master-control-actions">
         <button className="master-secondary-btn" onClick={resetFilters}>
-          Reset
+          {t.reset}
         </button>
 
         <button className="master-export-btn" onClick={() => exportToExcel(rows, filename)}>
-          Export Excel
+          {t.exportExcel}
         </button>
       </div>
     </div>
@@ -470,11 +722,24 @@ function MasterData() {
 
     if (totalPages <= 1) return null
 
+    const getVisiblePages = () => {
+      const pages = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1])
+
+      return Array.from(pages)
+        .filter((page) => page >= 1 && page <= totalPages)
+        .sort((a, b) => a - b)
+        .reduce((items, page, index, pagesList) => {
+          if (index > 0 && page - pagesList[index - 1] > 1) items.push('ellipsis-' + page)
+          items.push(page)
+          return items
+        }, [])
+    }
+
     return (
       <div className="master-pagination">
         <p>
-          Showing {(currentPage - 1) * rowsPerPage + 1}-
-          {Math.min(currentPage * rowsPerPage, totalItems)} of {totalItems} records
+          {t.showing} {(currentPage - 1) * rowsPerPage + 1}-
+          {Math.min(currentPage * rowsPerPage, totalItems)} {t.of} {totalItems} {t.records}
         </p>
 
         <div className="master-pages">
@@ -485,15 +750,19 @@ function MasterData() {
             ‹
           </button>
 
-          {Array.from({ length: totalPages }, (_, index) => (
-            <button
-              key={index + 1}
-              className={currentPage === index + 1 ? 'active' : ''}
-              onClick={() => setCurrentPage(index + 1)}
-            >
-              {index + 1}
-            </button>
-          ))}
+          {getVisiblePages().map((page) =>
+            typeof page === 'string' ? (
+              <span key={page} className="pagination-ellipsis">...</span>
+            ) : (
+              <button
+                key={page}
+                className={currentPage === page ? 'active' : ''}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </button>
+            )
+          )}
 
           <button
             disabled={currentPage === totalPages}
@@ -518,7 +787,7 @@ function MasterData() {
         return
       }
 
-      const response = await fetch(`${API_BASE_URL}/clients`, {
+      const response = await authFetch(`${API_BASE_URL}/clients`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newClient),
@@ -561,7 +830,7 @@ function MasterData() {
 
   const handleUpdateClient = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/clients/${editingClient.id}`, {
+      const response = await authFetch(`${API_BASE_URL}/clients/${editingClient.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editClientData),
@@ -588,7 +857,7 @@ function MasterData() {
 
   const handleDeleteClient = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/clients/${id}`, {
+      const response = await authFetch(`${API_BASE_URL}/clients/${id}`, {
         method: 'DELETE',
       })
 
@@ -625,7 +894,7 @@ function MasterData() {
         ClientId: parseInt(newProject.ClientId, 10),
       }
 
-      const response = await fetch(`${API_BASE_URL}/projects`, {
+      const response = await authFetch(`${API_BASE_URL}/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -672,7 +941,7 @@ function MasterData() {
 
   const handleUpdateProject = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${editingProject.id}`, {
+      const response = await authFetch(`${API_BASE_URL}/projects/${editingProject.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -703,7 +972,7 @@ function MasterData() {
 
   const handleDeleteProject = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+      const response = await authFetch(`${API_BASE_URL}/projects/${id}`, {
         method: 'DELETE',
       })
 
@@ -725,8 +994,8 @@ function MasterData() {
 
   const handleCreateEmployee = async () => {
     try {
-      if (!newEmployee.first_name || !newEmployee.base_salary) {
-        showToastMessage('First name and base salary are required', 'error')
+      if (!newEmployee.first_name || !newEmployee.last_name || !newEmployee.email || !newEmployee.position || !newEmployee.team || !newEmployee.department || !newEmployee.hire_date || !newEmployee.base_salary) {
+        showToastMessage('All employee fields are required', 'error')
         return
       }
 
@@ -736,7 +1005,7 @@ function MasterData() {
         hire_date: newEmployee.hire_date || null,
       }
 
-      const response = await fetch(`${API_BASE_URL}/employees`, {
+      const response = await authFetch(`${API_BASE_URL}/employees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -759,6 +1028,8 @@ function MasterData() {
         email: '',
         phone: '',
         position: '',
+        team: '',
+        department: '',
         hire_date: '',
         base_salary: '',
       })
@@ -776,6 +1047,8 @@ function MasterData() {
       email: employee.email || '',
       phone: employee.phone || '',
       position: employee.position || '',
+      team: employee.team || '',
+      department: employee.department || '',
       hire_date: employee.hire_date ? employee.hire_date.slice(0, 10) : '',
       base_salary: employee.base_salary || '',
     })
@@ -783,7 +1056,7 @@ function MasterData() {
 
   const handleUpdateEmployee = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/employees/${editingEmployee.id}`, {
+      const response = await authFetch(`${API_BASE_URL}/employees/${editingEmployee.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -814,7 +1087,7 @@ function MasterData() {
 
   const handleDeleteEmployee = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/employees/${id}`, {
+      const response = await authFetch(`${API_BASE_URL}/employees/${id}`, {
         method: 'DELETE',
       })
 
@@ -841,7 +1114,7 @@ function MasterData() {
         return
       }
 
-      const response = await fetch(`${API_BASE_URL}/fournisseurs`, {
+      const response = await authFetch(`${API_BASE_URL}/fournisseurs`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newFournisseur),
@@ -884,7 +1157,7 @@ function MasterData() {
 
   const handleUpdateFournisseur = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/fournisseurs/${editingFournisseur.id}`, {
+      const response = await authFetch(`${API_BASE_URL}/fournisseurs/${editingFournisseur.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editFournisseurData),
@@ -911,7 +1184,7 @@ function MasterData() {
 
   const handleDeleteFournisseur = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/fournisseurs/${id}`, {
+      const response = await authFetch(`${API_BASE_URL}/fournisseurs/${id}`, {
         method: 'DELETE',
       })
 
@@ -938,7 +1211,7 @@ function MasterData() {
         return
       }
 
-      const response = await fetch(`${API_BASE_URL}/categories`, {
+      const response = await authFetch(`${API_BASE_URL}/categories`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newCategory),
@@ -975,7 +1248,7 @@ function MasterData() {
 
   const handleUpdateCategory = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/categories/${editingCategory.id}`, {
+      const response = await authFetch(`${API_BASE_URL}/categories/${editingCategory.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editCategoryData),
@@ -1002,7 +1275,7 @@ function MasterData() {
 
   const handleDeleteCategory = async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/categories/${id}`, {
+      const response = await authFetch(`${API_BASE_URL}/categories/${id}`, {
         method: 'DELETE',
       })
 
@@ -1043,29 +1316,39 @@ function MasterData() {
   const currentData = getCurrentData()
   const filteredCurrentData = processData(currentData, activeTab)
 
-  const renderActions = (item, type) => (
-    <div className="master-row-actions">
-      <button
-        className="master-action-btn edit"
-        onClick={() => {
-          if (type === 'client') openEditClientModal(item)
-          if (type === 'project') openEditProjectModal(item)
-          if (type === 'employee') openEditEmployeeModal(item)
-          if (type === 'fournisseur') openEditFournisseurModal(item)
-          if (type === 'category') openEditCategoryModal(item)
-        }}
-      >
-        Edit
-      </button>
+  const renderActions = (item, type) => {
+    const resource = type === 'client' ? 'clients' : type === 'project' ? 'projects' : type === 'employee' ? 'employees' : type === 'category' ? 'categories' : 'fournisseurs'
+    const canEdit = canUpdateResource(resource, role)
+    const canRemove = canDeleteResource(resource, role)
 
-      <button
-        className="master-action-btn delete"
-        onClick={() => confirmDelete(item.id, type)}
-      >
-        Delete
-      </button>
-    </div>
-  )
+    return (
+      <div className="master-row-actions">
+        {canEdit && (
+          <button
+            className="master-action-btn edit"
+            onClick={() => {
+              if (type === 'client') openEditClientModal(item)
+              if (type === 'project') openEditProjectModal(item)
+              if (type === 'employee') openEditEmployeeModal(item)
+              if (type === 'fournisseur') openEditFournisseurModal(item)
+              if (type === 'category') openEditCategoryModal(item)
+            }}
+          >
+            {t.edit}
+          </button>
+        )}
+
+        {canRemove && (
+          <button
+            className="master-action-btn delete"
+            onClick={() => confirmDelete(item.id, type)}
+          >
+            {t.delete}
+          </button>
+        )}
+      </div>
+    )
+  }
 
   const renderClientsTable = () => {
     const rows = filteredCurrentData.map((c) => ({
@@ -1080,8 +1363,8 @@ function MasterData() {
       <>
         <div className="master-table-top">
           <div>
-            <h4>Clients</h4>
-            <p>{filteredCurrentData.length} visible records from {clients.length} total clients</p>
+            <h4>{t.clients}</h4>
+            <p>{filteredCurrentData.length} {t.visibleRecords} {clients.length} {t.totalClients}</p>
           </div>
         </div>
 
@@ -1090,12 +1373,12 @@ function MasterData() {
         <table>
           <thead>
             <tr>
-              <th onClick={() => handleSort('name')}>Name {getSortIcon('name')}</th>
-              <th onClick={() => handleSort('email')}>Email {getSortIcon('email')}</th>
-              <th onClick={() => handleSort('phone')}>Phone {getSortIcon('phone')}</th>
-              <th onClick={() => handleSort('company')}>Company {getSortIcon('company')}</th>
-              <th>Address</th>
-              <th>Actions</th>
+              <th onClick={() => handleSort('name')}>{t.name} {getSortIcon('name')}</th>
+              <th onClick={() => handleSort('email')}>{t.email} {getSortIcon('email')}</th>
+              <th onClick={() => handleSort('phone')}>{t.phone} {getSortIcon('phone')}</th>
+              <th onClick={() => handleSort('company')}>{t.company} {getSortIcon('company')}</th>
+              <th>{t.address}</th>
+              <th>{t.actions}</th>
             </tr>
           </thead>
 
@@ -1117,7 +1400,7 @@ function MasterData() {
             ) : (
               <tr>
                 <td colSpan="6">
-                  <EmptyState title="No clients found" message="No client records match your current filters." />
+                  <EmptyState title={t.noClients} message={t.noClientsMessage} />
                 </td>
               </tr>
             )}
@@ -1143,8 +1426,8 @@ function MasterData() {
       <>
         <div className="master-table-top">
           <div>
-            <h4>Projects</h4>
-            <p>{filteredCurrentData.length} visible records from {projects.length} total projects</p>
+            <h4>{t.projects}</h4>
+            <p>{filteredCurrentData.length} {t.visibleRecords} {projects.length} {t.totalProjects}</p>
           </div>
         </div>
 
@@ -1153,13 +1436,13 @@ function MasterData() {
         <table>
           <thead>
             <tr>
-              <th onClick={() => handleSort('name')}>Name {getSortIcon('name')}</th>
-              <th onClick={() => handleSort('status')}>Status {getSortIcon('status')}</th>
-              <th onClick={() => handleSort('displayDate')}>Start Date {getSortIcon('displayDate')}</th>
-              <th onClick={() => handleSort('end_date')}>End Date {getSortIcon('end_date')}</th>
-              <th onClick={() => handleSort('displayValue')}>Value {getSortIcon('displayValue')}</th>
-              <th onClick={() => handleSort('client')}>Client {getSortIcon('client')}</th>
-              <th>Actions</th>
+              <th onClick={() => handleSort('name')}>{t.name} {getSortIcon('name')}</th>
+              <th onClick={() => handleSort('status')}>{t.status} {getSortIcon('status')}</th>
+              <th onClick={() => handleSort('displayDate')}>{t.startDate} {getSortIcon('displayDate')}</th>
+              <th onClick={() => handleSort('end_date')}>{t.endDate} {getSortIcon('end_date')}</th>
+              <th onClick={() => handleSort('displayValue')}>{t.value} {getSortIcon('displayValue')}</th>
+              <th onClick={() => handleSort('client')}>{t.clients.slice(0, -1)} {getSortIcon('client')}</th>
+              <th>{t.actions}</th>
             </tr>
           </thead>
 
@@ -1182,7 +1465,7 @@ function MasterData() {
             ) : (
               <tr>
                 <td colSpan="7">
-                  <EmptyState title="No projects found" message="No project records match your current filters." />
+                  <EmptyState title={t.noProjects} message={t.noProjectsMessage} />
                 </td>
               </tr>
             )}
@@ -1201,6 +1484,8 @@ function MasterData() {
       Email: e.email || '-',
       Phone: e.phone || '-',
       Position: e.position || '-',
+      Team: e.team || '-',
+      Department: e.department || '-',
       'Hire Date': e.hire_date ? e.hire_date.slice(0, 10) : '-',
       'Base Salary': Number(e.base_salary || 0),
     }))
@@ -1209,8 +1494,8 @@ function MasterData() {
       <>
         <div className="master-table-top">
           <div>
-            <h4>Employees</h4>
-            <p>{filteredCurrentData.length} visible records from {employees.length} total employees</p>
+            <h4>{t.employees}</h4>
+            <p>{filteredCurrentData.length} {t.visibleRecords} {employees.length} {t.totalEmployees}</p>
           </div>
         </div>
 
@@ -1219,13 +1504,15 @@ function MasterData() {
         <table>
           <thead>
             <tr>
-              <th onClick={() => handleSort('first_name')}>First Name {getSortIcon('first_name')}</th>
-              <th onClick={() => handleSort('last_name')}>Last Name {getSortIcon('last_name')}</th>
-              <th onClick={() => handleSort('email')}>Email {getSortIcon('email')}</th>
-              <th onClick={() => handleSort('position')}>Position {getSortIcon('position')}</th>
-              <th onClick={() => handleSort('displayDate')}>Hire Date {getSortIcon('displayDate')}</th>
-              <th onClick={() => handleSort('displayValue')}>Base Salary {getSortIcon('displayValue')}</th>
-              <th>Actions</th>
+              <th onClick={() => handleSort('first_name')}>{t.firstName} {getSortIcon('first_name')}</th>
+              <th onClick={() => handleSort('last_name')}>{t.lastName} {getSortIcon('last_name')}</th>
+              <th onClick={() => handleSort('email')}>{t.email} {getSortIcon('email')}</th>
+              <th onClick={() => handleSort('position')}>{t.position} {getSortIcon('position')}</th>
+              <th onClick={() => handleSort('team')}>{t.team} {getSortIcon('team')}</th>
+              <th onClick={() => handleSort('department')}>{t.department} {getSortIcon('department')}</th>
+              <th onClick={() => handleSort('displayDate')}>{t.hireDate} {getSortIcon('displayDate')}</th>
+              <th onClick={() => handleSort('displayValue')}>{t.baseSalary} {getSortIcon('displayValue')}</th>
+              <th>{t.actions}</th>
             </tr>
           </thead>
 
@@ -1240,6 +1527,8 @@ function MasterData() {
                   <td>{e.last_name || '-'}</td>
                   <td>{e.email || '-'}</td>
                   <td>{e.position || '-'}</td>
+                  <td>{e.team || '-'}</td>
+                  <td>{e.department || '-'}</td>
                   <td>{e.hire_date ? e.hire_date.slice(0, 10) : '-'}</td>
                   <td>${Number(e.base_salary || 0).toLocaleString()}</td>
                   <td>{renderActions(e, 'employee')}</td>
@@ -1247,8 +1536,8 @@ function MasterData() {
               ))
             ) : (
               <tr>
-                <td colSpan="7">
-                  <EmptyState title="No employees found" message="No employee records match your current filters." />
+                <td colSpan="9">
+                  <EmptyState title={t.noEmployees} message={t.noEmployeesMessage} />
                 </td>
               </tr>
             )}
@@ -1271,8 +1560,8 @@ function MasterData() {
       <>
         <div className="master-table-top">
           <div>
-            <h4>Categories</h4>
-            <p>{filteredCurrentData.length} visible records from {categories.length} total categories</p>
+            <h4>{t.categories}</h4>
+            <p>{filteredCurrentData.length} {t.visibleRecords} {categories.length} {t.totalCategories}</p>
           </div>
         </div>
 
@@ -1281,10 +1570,10 @@ function MasterData() {
         <table>
           <thead>
             <tr>
-              <th onClick={() => handleSort('name')}>Name {getSortIcon('name')}</th>
-              <th>Description</th>
-              <th onClick={() => handleSort('usage')}>Used In Expenses {getSortIcon('usage')}</th>
-              <th>Actions</th>
+              <th onClick={() => handleSort('name')}>{t.name} {getSortIcon('name')}</th>
+              <th>{t.description}</th>
+              <th onClick={() => handleSort('usage')}>{t.usedInExpenses} {getSortIcon('usage')}</th>
+              <th>{t.actions}</th>
             </tr>
           </thead>
 
@@ -1304,7 +1593,7 @@ function MasterData() {
             ) : (
               <tr>
                 <td colSpan="4">
-                  <EmptyState title="No categories found" message="No category records match your current filters." />
+                  <EmptyState title={t.noCategories} message={t.noCategoriesMessage} />
                 </td>
               </tr>
             )}
@@ -1329,8 +1618,8 @@ function MasterData() {
       <>
         <div className="master-table-top">
           <div>
-            <h4>Suppliers</h4>
-            <p>{filteredCurrentData.length} visible records from {fournisseurs.length} total suppliers</p>
+            <h4>{t.suppliers}</h4>
+            <p>{filteredCurrentData.length} {t.visibleRecords} {fournisseurs.length} {t.totalSuppliers}</p>
           </div>
         </div>
 
@@ -1339,12 +1628,12 @@ function MasterData() {
         <table>
           <thead>
             <tr>
-              <th onClick={() => handleSort('name')}>Name {getSortIcon('name')}</th>
-              <th onClick={() => handleSort('email')}>Email {getSortIcon('email')}</th>
-              <th onClick={() => handleSort('phone')}>Phone {getSortIcon('phone')}</th>
-              <th>Address</th>
-              <th onClick={() => handleSort('contact_person')}>Contact Person {getSortIcon('contact_person')}</th>
-              <th>Actions</th>
+              <th onClick={() => handleSort('name')}>{t.name} {getSortIcon('name')}</th>
+              <th onClick={() => handleSort('email')}>{t.email} {getSortIcon('email')}</th>
+              <th onClick={() => handleSort('phone')}>{t.phone} {getSortIcon('phone')}</th>
+              <th>{t.address}</th>
+              <th onClick={() => handleSort('contact_person')}>{t.contactPerson} {getSortIcon('contact_person')}</th>
+              <th>{t.actions}</th>
             </tr>
           </thead>
 
@@ -1366,7 +1655,7 @@ function MasterData() {
             ) : (
               <tr>
                 <td colSpan="6">
-                  <EmptyState title="No suppliers found" message="No supplier records match your current filters." />
+                  <EmptyState title={t.noSuppliers} message={t.noSuppliersMessage} />
                 </td>
               </tr>
             )}
@@ -1385,46 +1674,46 @@ function MasterData() {
     if (activeTab === 'categories') return renderCategoriesTable()
     if (activeTab === 'fournisseurs') return renderFournisseursTable()
 
-    return <EmptyState title="Tab not connected" message="This section is not available yet." />
+    return <EmptyState title={t.tabNotConnected} message={t.tabNotAvailable} />
   }
 
   const getBottomCards = () => {
     if (activeTab === 'clients') {
       return [
-        { title: 'Total Clients', value: clients.length },
-        { title: 'Visible Records', value: filteredCurrentData.length },
-        { title: 'Status', value: 'Connected', dark: true },
+        { title: t.totalClientsCard, value: clients.length },
+        { title: t.visibleRecordsCard, value: filteredCurrentData.length },
+        { title: t.statusCard, value: t.connected, dark: true },
       ]
     }
 
     if (activeTab === 'projects') {
       return [
-        { title: 'Total Projects', value: projects.length },
-        { title: 'Visible Records', value: filteredCurrentData.length },
-        { title: 'Status', value: 'Connected', dark: true },
+        { title: t.totalProjectsCard, value: projects.length },
+        { title: t.visibleRecordsCard, value: filteredCurrentData.length },
+        { title: t.statusCard, value: t.connected, dark: true },
       ]
     }
 
     if (activeTab === 'employees') {
       return [
-        { title: 'Total Employees', value: employees.length },
-        { title: 'Visible Records', value: filteredCurrentData.length },
-        { title: 'Status', value: 'Connected', dark: true },
+        { title: t.totalEmployeesCard, value: employees.length },
+        { title: t.visibleRecordsCard, value: filteredCurrentData.length },
+        { title: t.statusCard, value: t.connected, dark: true },
       ]
     }
 
     if (activeTab === 'categories') {
       return [
-        { title: 'Total Categories', value: categories.length },
-        { title: 'Visible Records', value: filteredCurrentData.length },
-        { title: 'Status', value: 'Connected', dark: true },
+        { title: t.totalCategoriesCard, value: categories.length },
+        { title: t.visibleRecordsCard, value: filteredCurrentData.length },
+        { title: t.statusCard, value: t.connected, dark: true },
       ]
     }
 
     return [
-      { title: 'Total Suppliers', value: fournisseurs.length },
-      { title: 'Visible Records', value: filteredCurrentData.length },
-      { title: 'Status', value: 'Connected', dark: true },
+      { title: t.totalSuppliersCard, value: fournisseurs.length },
+      { title: t.visibleRecordsCard, value: filteredCurrentData.length },
+      { title: t.statusCard, value: t.connected, dark: true },
     ]
   }
 
@@ -1433,48 +1722,36 @@ function MasterData() {
   return (
     <div className="master-page">
       <PageHeader
-        title="Master Data"
-        subtitle="Manage core reference entities used across the application"
+        title={t.pageTitle}
+        subtitle={t.pageSubtitle}
       />
 
       <div className="master-header">
         <div>
-          <h2>Entity Directory</h2>
-          <p>Centralized governance for reference data</p>
+          <h2>{t.entityDirectory}</h2>
+          <p>{t.entitySubtitle}</p>
         </div>
 
-        <button className="add-btn" onClick={() => setShowModal(true)}>
-          + Add New
-        </button>
+        {canCreateActive && (
+          <button className="add-btn" onClick={() => setShowModal(true)}>
+            {t.addNew}
+          </button>
+        )}
       </div>
 
       <div className="master-tabs">
-        <button className={activeTab === 'clients' ? 'active' : ''} onClick={() => switchTab('clients')}>
-          Clients
-        </button>
-
-        <button className={activeTab === 'projects' ? 'active' : ''} onClick={() => switchTab('projects')}>
-          Projects
-        </button>
-
-        <button className={activeTab === 'employees' ? 'active' : ''} onClick={() => switchTab('employees')}>
-          Employees
-        </button>
-
-        <button className={activeTab === 'fournisseurs' ? 'active' : ''} onClick={() => switchTab('fournisseurs')}>
-          Suppliers
-        </button>
-
-        <button className={activeTab === 'categories' ? 'active' : ''} onClick={() => switchTab('categories')}>
-          Categories
-        </button>
+        {visibleTabs.map((tab) => (
+          <button key={tab.id} className={activeTab === tab.id ? 'active' : ''} onClick={() => switchTab(tab.id)}>
+            {tab.label}
+          </button>
+        ))}
       </div>
 
       <div className="table-card">
         {loading ? (
-          <LoadingState message="Loading master data..." />
+          <LoadingState message={t.loadingMasterData} />
         ) : error ? (
-          <EmptyState title="Master data loading failed" message={error} />
+          <EmptyState title={t.masterDataFailed} message={error} />
         ) : (
           renderActiveTable()
         )}
@@ -1494,97 +1771,99 @@ function MasterData() {
           <div className="modal">
             {activeTab === 'clients' && (
               <>
-                <h3>Add New Client</h3>
+                <h3>{t.addNewClient}</h3>
 
-                <input placeholder="Name" value={newClient.name} onChange={(e) => setNewClient({ ...newClient, name: e.target.value })} />
-                <input placeholder="Email" value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} />
-                <input placeholder="Phone" value={newClient.phone} onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })} />
-                <input placeholder="Company" value={newClient.company} onChange={(e) => setNewClient({ ...newClient, company: e.target.value })} />
-                <input placeholder="Address" value={newClient.address} onChange={(e) => setNewClient({ ...newClient, address: e.target.value })} />
+                <input placeholder={t.name} value={newClient.name} onChange={(e) => setNewClient({ ...newClient, name: e.target.value })} />
+                <input placeholder={t.email} value={newClient.email} onChange={(e) => setNewClient({ ...newClient, email: e.target.value })} />
+                <input placeholder={t.phone} value={newClient.phone} onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })} />
+                <input placeholder={t.company} value={newClient.company} onChange={(e) => setNewClient({ ...newClient, company: e.target.value })} />
+                <input placeholder={t.address} value={newClient.address} onChange={(e) => setNewClient({ ...newClient, address: e.target.value })} />
 
                 <div className="modal-actions">
-                  <button onClick={handleCreateClient}>Create</button>
-                  <button onClick={closeAddModal}>Cancel</button>
+                  <button onClick={handleCreateClient}>{t.create}</button>
+                  <button onClick={closeAddModal}>{t.cancel}</button>
                 </div>
               </>
             )}
 
             {activeTab === 'projects' && (
               <>
-                <h3>Add New Project</h3>
+                <h3>{t.addNewProject}</h3>
 
-                <input placeholder="Project Name" value={newProject.name} onChange={(e) => setNewProject({ ...newProject, name: e.target.value })} />
-                <input placeholder="Description" value={newProject.description} onChange={(e) => setNewProject({ ...newProject, description: e.target.value })} />
+                <input placeholder={t.projectName} value={newProject.name} onChange={(e) => setNewProject({ ...newProject, name: e.target.value })} />
+                <input placeholder={t.description} value={newProject.description} onChange={(e) => setNewProject({ ...newProject, description: e.target.value })} />
                 <input type="date" value={newProject.start_date} onChange={(e) => setNewProject({ ...newProject, start_date: e.target.value })} />
                 <input type="date" value={newProject.end_date} onChange={(e) => setNewProject({ ...newProject, end_date: e.target.value })} />
-                <input type="number" placeholder="Total Value" value={newProject.total_value} onChange={(e) => setNewProject({ ...newProject, total_value: e.target.value })} />
+                <input type="number" placeholder={t.totalValue} value={newProject.total_value} onChange={(e) => setNewProject({ ...newProject, total_value: e.target.value })} />
 
                 <select value={newProject.status} onChange={(e) => setNewProject({ ...newProject, status: e.target.value })}>
-                  <option value="Active">Active</option>
-                  <option value="Completed">Completed</option>
-                  <option value="Pending">Pending</option>
+                  <option value="Active">{t.active}</option>
+                  <option value="Completed">{t.completed}</option>
+                  <option value="Pending">{t.pending}</option>
                 </select>
 
                 <select value={newProject.ClientId} onChange={(e) => setNewProject({ ...newProject, ClientId: e.target.value })}>
-                  <option value="">Select Client</option>
+                  <option value="">{t.selectClient}</option>
                   {clients.map((client) => (
                     <option key={client.id} value={client.id}>{client.name}</option>
                   ))}
                 </select>
 
                 <div className="modal-actions">
-                  <button onClick={handleCreateProject}>Create</button>
-                  <button onClick={closeAddModal}>Cancel</button>
+                  <button onClick={handleCreateProject}>{t.create}</button>
+                  <button onClick={closeAddModal}>{t.cancel}</button>
                 </div>
               </>
             )}
 
             {activeTab === 'employees' && (
               <>
-                <h3>Add New Employee</h3>
+                <h3>{t.addNewEmployee}</h3>
 
-                <input placeholder="First Name" value={newEmployee.first_name} onChange={(e) => setNewEmployee({ ...newEmployee, first_name: e.target.value })} />
-                <input placeholder="Last Name" value={newEmployee.last_name} onChange={(e) => setNewEmployee({ ...newEmployee, last_name: e.target.value })} />
-                <input placeholder="Email" value={newEmployee.email} onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })} />
-                <input placeholder="Phone" value={newEmployee.phone} onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })} />
-                <input placeholder="Position" value={newEmployee.position} onChange={(e) => setNewEmployee({ ...newEmployee, position: e.target.value })} />
+                <input placeholder={t.firstName} value={newEmployee.first_name} onChange={(e) => setNewEmployee({ ...newEmployee, first_name: e.target.value })} />
+                <input placeholder={t.lastName} value={newEmployee.last_name} onChange={(e) => setNewEmployee({ ...newEmployee, last_name: e.target.value })} />
+                <input placeholder={t.email} value={newEmployee.email} onChange={(e) => setNewEmployee({ ...newEmployee, email: e.target.value })} />
+                <input placeholder={t.phone} value={newEmployee.phone} onChange={(e) => setNewEmployee({ ...newEmployee, phone: e.target.value })} />
+                <input placeholder={t.position} value={newEmployee.position} onChange={(e) => setNewEmployee({ ...newEmployee, position: e.target.value })} />
+                <input placeholder={t.team} value={newEmployee.team} onChange={(e) => setNewEmployee({ ...newEmployee, team: e.target.value })} />
+                <input placeholder={t.department} value={newEmployee.department} onChange={(e) => setNewEmployee({ ...newEmployee, department: e.target.value })} />
                 <input type="date" value={newEmployee.hire_date} onChange={(e) => setNewEmployee({ ...newEmployee, hire_date: e.target.value })} />
-                <input type="number" placeholder="Base Salary" value={newEmployee.base_salary} onChange={(e) => setNewEmployee({ ...newEmployee, base_salary: e.target.value })} />
+                <input type="number" placeholder={t.baseSalary} value={newEmployee.base_salary} onChange={(e) => setNewEmployee({ ...newEmployee, base_salary: e.target.value })} />
 
                 <div className="modal-actions">
-                  <button onClick={handleCreateEmployee}>Create</button>
-                  <button onClick={closeAddModal}>Cancel</button>
+                  <button onClick={handleCreateEmployee}>{t.create}</button>
+                  <button onClick={closeAddModal}>{t.cancel}</button>
                 </div>
               </>
             )}
 
             {activeTab === 'fournisseurs' && (
               <>
-                <h3>Add New Supplier</h3>
+                <h3>{t.addNewSupplier}</h3>
 
-                <input placeholder="Name" value={newFournisseur.name} onChange={(e) => setNewFournisseur({ ...newFournisseur, name: e.target.value })} />
-                <input placeholder="Email" value={newFournisseur.email} onChange={(e) => setNewFournisseur({ ...newFournisseur, email: e.target.value })} />
-                <input placeholder="Phone" value={newFournisseur.phone} onChange={(e) => setNewFournisseur({ ...newFournisseur, phone: e.target.value })} />
-                <input placeholder="Address" value={newFournisseur.address} onChange={(e) => setNewFournisseur({ ...newFournisseur, address: e.target.value })} />
-                <input placeholder="Contact Person" value={newFournisseur.contact_person} onChange={(e) => setNewFournisseur({ ...newFournisseur, contact_person: e.target.value })} />
+                <input placeholder={t.name} value={newFournisseur.name} onChange={(e) => setNewFournisseur({ ...newFournisseur, name: e.target.value })} />
+                <input placeholder={t.email} value={newFournisseur.email} onChange={(e) => setNewFournisseur({ ...newFournisseur, email: e.target.value })} />
+                <input placeholder={t.phone} value={newFournisseur.phone} onChange={(e) => setNewFournisseur({ ...newFournisseur, phone: e.target.value })} />
+                <input placeholder={t.address} value={newFournisseur.address} onChange={(e) => setNewFournisseur({ ...newFournisseur, address: e.target.value })} />
+                <input placeholder={t.contactPerson} value={newFournisseur.contact_person} onChange={(e) => setNewFournisseur({ ...newFournisseur, contact_person: e.target.value })} />
 
                 <div className="modal-actions">
-                  <button onClick={handleCreateFournisseur}>Create</button>
-                  <button onClick={closeAddModal}>Cancel</button>
+                  <button onClick={handleCreateFournisseur}>{t.create}</button>
+                  <button onClick={closeAddModal}>{t.cancel}</button>
                 </div>
               </>
             )}
 
             {activeTab === 'categories' && (
               <>
-                <h3>Add New Category</h3>
+                <h3>{t.addNewCategory}</h3>
 
-                <input placeholder="Name" value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} />
-                <input placeholder="Description" value={newCategory.description} onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })} />
+                <input placeholder={t.name} value={newCategory.name} onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })} />
+                <input placeholder={t.description} value={newCategory.description} onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })} />
 
                 <div className="modal-actions">
-                  <button onClick={handleCreateCategory}>Create</button>
-                  <button onClick={closeAddModal}>Cancel</button>
+                  <button onClick={handleCreateCategory}>{t.create}</button>
+                  <button onClick={closeAddModal}>{t.cancel}</button>
                 </div>
               </>
             )}
@@ -1595,17 +1874,17 @@ function MasterData() {
       {editingClient && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Edit Client</h3>
+            <h3>{t.editClient}</h3>
 
-            <input placeholder="Name" value={editClientData.name} onChange={(e) => setEditClientData({ ...editClientData, name: e.target.value })} />
-            <input placeholder="Email" value={editClientData.email} onChange={(e) => setEditClientData({ ...editClientData, email: e.target.value })} />
-            <input placeholder="Phone" value={editClientData.phone} onChange={(e) => setEditClientData({ ...editClientData, phone: e.target.value })} />
-            <input placeholder="Company" value={editClientData.company} onChange={(e) => setEditClientData({ ...editClientData, company: e.target.value })} />
-            <input placeholder="Address" value={editClientData.address} onChange={(e) => setEditClientData({ ...editClientData, address: e.target.value })} />
+            <input placeholder={t.name} value={editClientData.name} onChange={(e) => setEditClientData({ ...editClientData, name: e.target.value })} />
+            <input placeholder={t.email} value={editClientData.email} onChange={(e) => setEditClientData({ ...editClientData, email: e.target.value })} />
+            <input placeholder={t.phone} value={editClientData.phone} onChange={(e) => setEditClientData({ ...editClientData, phone: e.target.value })} />
+            <input placeholder={t.company} value={editClientData.company} onChange={(e) => setEditClientData({ ...editClientData, company: e.target.value })} />
+            <input placeholder={t.address} value={editClientData.address} onChange={(e) => setEditClientData({ ...editClientData, address: e.target.value })} />
 
             <div className="modal-actions">
-              <button onClick={handleUpdateClient}>Save</button>
-              <button onClick={() => setEditingClient(null)}>Cancel</button>
+              <button onClick={handleUpdateClient}>{t.save}</button>
+              <button onClick={() => setEditingClient(null)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -1614,30 +1893,30 @@ function MasterData() {
       {editingProject && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Edit Project</h3>
+            <h3>{t.editProject}</h3>
 
-            <input placeholder="Project Name" value={editProjectData.name} onChange={(e) => setEditProjectData({ ...editProjectData, name: e.target.value })} />
-            <input placeholder="Description" value={editProjectData.description} onChange={(e) => setEditProjectData({ ...editProjectData, description: e.target.value })} />
+            <input placeholder={t.projectName} value={editProjectData.name} onChange={(e) => setEditProjectData({ ...editProjectData, name: e.target.value })} />
+            <input placeholder={t.description} value={editProjectData.description} onChange={(e) => setEditProjectData({ ...editProjectData, description: e.target.value })} />
             <input type="date" value={editProjectData.start_date} onChange={(e) => setEditProjectData({ ...editProjectData, start_date: e.target.value })} />
             <input type="date" value={editProjectData.end_date} onChange={(e) => setEditProjectData({ ...editProjectData, end_date: e.target.value })} />
-            <input type="number" placeholder="Total Value" value={editProjectData.total_value} onChange={(e) => setEditProjectData({ ...editProjectData, total_value: e.target.value })} />
+            <input type="number" placeholder={t.totalValue} value={editProjectData.total_value} onChange={(e) => setEditProjectData({ ...editProjectData, total_value: e.target.value })} />
 
             <select value={editProjectData.status} onChange={(e) => setEditProjectData({ ...editProjectData, status: e.target.value })}>
-              <option value="Active">Active</option>
-              <option value="Completed">Completed</option>
-              <option value="Pending">Pending</option>
+              <option value="Active">{t.active}</option>
+              <option value="Completed">{t.completed}</option>
+              <option value="Pending">{t.pending}</option>
             </select>
 
             <select value={editProjectData.ClientId} onChange={(e) => setEditProjectData({ ...editProjectData, ClientId: e.target.value })}>
-              <option value="">Select Client</option>
+              <option value="">{t.selectClient}</option>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>{client.name}</option>
               ))}
             </select>
 
             <div className="modal-actions">
-              <button onClick={handleUpdateProject}>Save</button>
-              <button onClick={() => setEditingProject(null)}>Cancel</button>
+              <button onClick={handleUpdateProject}>{t.save}</button>
+              <button onClick={() => setEditingProject(null)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -1646,19 +1925,21 @@ function MasterData() {
       {editingEmployee && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Edit Employee</h3>
+            <h3>{t.editEmployee}</h3>
 
-            <input placeholder="First Name" value={editEmployeeData.first_name} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, first_name: e.target.value })} />
-            <input placeholder="Last Name" value={editEmployeeData.last_name} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, last_name: e.target.value })} />
-            <input placeholder="Email" value={editEmployeeData.email} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, email: e.target.value })} />
-            <input placeholder="Phone" value={editEmployeeData.phone} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, phone: e.target.value })} />
-            <input placeholder="Position" value={editEmployeeData.position} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, position: e.target.value })} />
+            <input placeholder={t.firstName} value={editEmployeeData.first_name} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, first_name: e.target.value })} />
+            <input placeholder={t.lastName} value={editEmployeeData.last_name} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, last_name: e.target.value })} />
+            <input placeholder={t.email} value={editEmployeeData.email} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, email: e.target.value })} />
+            <input placeholder={t.phone} value={editEmployeeData.phone} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, phone: e.target.value })} />
+            <input placeholder={t.position} value={editEmployeeData.position} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, position: e.target.value })} />
+            <input placeholder={t.team} value={editEmployeeData.team} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, team: e.target.value })} />
+            <input placeholder={t.department} value={editEmployeeData.department} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, department: e.target.value })} />
             <input type="date" value={editEmployeeData.hire_date} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, hire_date: e.target.value })} />
-            <input type="number" placeholder="Base Salary" value={editEmployeeData.base_salary} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, base_salary: e.target.value })} />
+            <input type="number" placeholder={t.baseSalary} value={editEmployeeData.base_salary} onChange={(e) => setEditEmployeeData({ ...editEmployeeData, base_salary: e.target.value })} />
 
             <div className="modal-actions">
-              <button onClick={handleUpdateEmployee}>Save</button>
-              <button onClick={() => setEditingEmployee(null)}>Cancel</button>
+              <button onClick={handleUpdateEmployee}>{t.save}</button>
+              <button onClick={() => setEditingEmployee(null)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -1667,17 +1948,17 @@ function MasterData() {
       {editingFournisseur && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Edit Supplier</h3>
+            <h3>{t.editSupplier}</h3>
 
-            <input placeholder="Name" value={editFournisseurData.name} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, name: e.target.value })} />
-            <input placeholder="Email" value={editFournisseurData.email} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, email: e.target.value })} />
-            <input placeholder="Phone" value={editFournisseurData.phone} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, phone: e.target.value })} />
-            <input placeholder="Address" value={editFournisseurData.address} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, address: e.target.value })} />
-            <input placeholder="Contact Person" value={editFournisseurData.contact_person} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, contact_person: e.target.value })} />
+            <input placeholder={t.name} value={editFournisseurData.name} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, name: e.target.value })} />
+            <input placeholder={t.email} value={editFournisseurData.email} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, email: e.target.value })} />
+            <input placeholder={t.phone} value={editFournisseurData.phone} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, phone: e.target.value })} />
+            <input placeholder={t.address} value={editFournisseurData.address} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, address: e.target.value })} />
+            <input placeholder={t.contactPerson} value={editFournisseurData.contact_person} onChange={(e) => setEditFournisseurData({ ...editFournisseurData, contact_person: e.target.value })} />
 
             <div className="modal-actions">
-              <button onClick={handleUpdateFournisseur}>Save</button>
-              <button onClick={() => setEditingFournisseur(null)}>Cancel</button>
+              <button onClick={handleUpdateFournisseur}>{t.save}</button>
+              <button onClick={() => setEditingFournisseur(null)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -1686,14 +1967,14 @@ function MasterData() {
       {editingCategory && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Edit Category</h3>
+            <h3>{t.editCategory}</h3>
 
-            <input placeholder="Name" value={editCategoryData.name} onChange={(e) => setEditCategoryData({ ...editCategoryData, name: e.target.value })} />
-            <input placeholder="Description" value={editCategoryData.description} onChange={(e) => setEditCategoryData({ ...editCategoryData, description: e.target.value })} />
+            <input placeholder={t.name} value={editCategoryData.name} onChange={(e) => setEditCategoryData({ ...editCategoryData, name: e.target.value })} />
+            <input placeholder={t.description} value={editCategoryData.description} onChange={(e) => setEditCategoryData({ ...editCategoryData, description: e.target.value })} />
 
             <div className="modal-actions">
-              <button onClick={handleUpdateCategory}>Save</button>
-              <button onClick={() => setEditingCategory(null)}>Cancel</button>
+              <button onClick={handleUpdateCategory}>{t.save}</button>
+              <button onClick={() => setEditingCategory(null)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -1701,8 +1982,8 @@ function MasterData() {
 
       {showConfirm && selectedDelete && (
         <ConfirmModal
-          title={`Delete ${selectedDelete.type.charAt(0).toUpperCase() + selectedDelete.type.slice(1)}`}
-          message={`Are you sure you want to delete this ${selectedDelete.type}? This action cannot be undone.`}
+          title={t.deleteTitle}
+          message={t.deleteMessage}
           onConfirm={handleConfirmDelete}
           onCancel={() => {
             setShowConfirm(false)
@@ -1717,3 +1998,4 @@ function MasterData() {
 }
 
 export default MasterData
+

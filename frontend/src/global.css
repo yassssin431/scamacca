@@ -180,13 +180,15 @@ ul {
   }
 }
 body.dark-mode {
-  background: #020617;
-  color: #e5e7eb;
+  background: #07111f;
+  color: #e5edf6;
 }
 
 body.dark-mode .main-content,
 body.dark-mode .settings-page {
-  background: #020617;
+  background:
+    radial-gradient(circle at top right, rgba(0, 122, 85, 0.12), transparent 34%),
+    #07111f;
 }
 
 body.dark-mode .general-card,
@@ -207,11 +209,10 @@ body.dark-mode h2,
 body.dark-mode h3,
 body.dark-mode h4,
 body.dark-mode strong {
-  color: #f8fafc !important;
+  color: inherit;
 }
 
 body.dark-mode p,
-body.dark-mode span,
 body.dark-mode label {
   color: #94a3b8;
 }

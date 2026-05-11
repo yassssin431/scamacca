@@ -1,60 +1,115 @@
 const { Category } = require("../models");
+const logActivity = require("../utils/activityLogger");
+const AppError = require("../utils/AppError"); // 🔥 nouvelle classe d'erreurs
 
-/* CREATE CATEGORY */
-exports.createCategory = async (req, res) => {
+// CREATE
+exports.createCategory = async (req, res, next) => {
   try {
     const category = await Category.create(req.body);
-    res.status(201).json(category);
+
+    // ✅ LOG CREATE
+    await logActivity({
+      userId: req.user.id,
+      action: "CREATE_CATEGORY",
+      entity: "Category",
+      details: `Created category ${category.name}`,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Category created successfully",
+      data: category,
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
-/* GET ALL CATEGORIES */
-exports.getAllCategories = async (req, res) => {
+// READ ALL
+exports.getCategories = async (req, res, next) => {
   try {
     const categories = await Category.findAll();
-    res.json(categories);
+    res.json({
+      success: true,
+      message: "Categories retrieved successfully",
+      data: categories,
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
-/* GET CATEGORY BY ID */
-exports.getCategoryById = async (req, res) => {
+// READ ONE
+exports.getCategoryById = async (req, res, next) => {
+  try {
+    const category = await Category.findByPk(req.params.id);
+    if (!category) {
+      throw new AppError("Category not found", 404);
+    }
+
+    res.json({
+      success: true,
+      message: "Category retrieved successfully",
+      data: category,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// UPDATE
+exports.updateCategory = async (req, res, next) => {
   try {
     const category = await Category.findByPk(req.params.id);
 
-    if (!category) return res.status(404).json({ message: "Not found" });
+    if (!category) {
+      throw new AppError("Category not found", 404);
+    }
 
-    res.json(category);
+    await category.update(req.body);
+
+    // ✅ LOG UPDATE
+    await logActivity({
+      userId: req.user.id,
+      action: "UPDATE_CATEGORY",
+      entity: "Category",
+      details: `Updated category ID ${req.params.id}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Category updated successfully",
+      data: category,
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };
 
-/* UPDATE CATEGORY */
-exports.updateCategory = async (req, res) => {
+// DELETE
+exports.deleteCategory = async (req, res, next) => {
   try {
-    await Category.update(req.body, {
-      where: { id: req.params.id },
+    const category = await Category.findByPk(req.params.id);
+
+    if (!category) {
+      throw new AppError("Category not found", 404);
+    }
+
+    await category.destroy();
+
+    // ✅ LOG DELETE
+    await logActivity({
+      userId: req.user.id,
+      action: "DELETE_CATEGORY",
+      entity: "Category",
+      details: `Deleted category ID ${req.params.id}`,
     });
 
-    res.json({ message: "Category updated" });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-};
-
-/* DELETE CATEGORY */
-exports.deleteCategory = async (req, res) => {
-  try {
-    await Category.destroy({
-      where: { id: req.params.id },
+    res.json({
+      success: true,
+      message: "Category deleted successfully",
     });
-
-    res.json({ message: "Category deleted" });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    next(error);
   }
 };

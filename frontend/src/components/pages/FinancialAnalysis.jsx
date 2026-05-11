@@ -2,17 +2,134 @@ import { useEffect, useMemo, useState } from 'react'
 import API_BASE_URL from '../../services/api'
 import './FinancialAnalysis.css'
 import PageHeader from '../common/PageHeader'
-import * as XLSX from 'xlsx'
+import { readOptionalData } from '../../services/authFetch'
+import { getCurrentUserRole } from '../../services/auth'
+import { canAccessResource } from '../../services/permissions'
+
+const translations = {
+  English: {
+    pageTitle: 'Financial Analysis',
+    generatedOn: 'Operational analysis generated on',
+    loadingInsights: 'Loading financial insights...',
+    failedLoad: 'Failed to load financial analysis data',
+
+    roi: 'Return on Investment',
+    profitable: 'Profitable position',
+    negative: 'Negative position',
+
+    operatingMargin: 'Operating Margin',
+    revenueVsCost: 'Revenue vs cost performance',
+
+    burnRate: 'Burn Rate / Mo',
+    monthlyAverage: 'Expenses + salaries monthly average',
+
+    expenseBreakdown: 'Expense Breakdown',
+    categorySpend: 'Category Spend Analysis',
+    liveData: 'Live Data',
+
+    noExpenseData: 'No expense category data available.',
+
+    invoiceOverview: 'Invoice Status Overview',
+    invoiceDistribution: 'Distribution of current invoice states',
+
+    paid: 'Paid',
+    pending: 'Pending',
+    cancelled: 'Cancelled',
+
+    realtimeSummary: 'Real-Time Summary',
+    netFinancial: 'Net Financial Position',
+
+    netText1: 'Total revenue currently stands at',
+    netText2: 'while total expenses and salaries amount to',
+
+    totalRevenue: 'Total Revenue',
+    netResult: 'Net Result',
+
+    openPowerBI: 'Open Power BI for Deep Analysis',
+
+    topProjects: 'Top Projects by Value',
+    backendData: 'Using backend data',
+
+    project: 'Project',
+    client: 'Client',
+    totalValue: 'Total Value',
+    displayedValue: 'Displayed Value',
+    trend: 'Trend',
+
+    noProjects: 'No project data available',
+    restrictedByRole: 'Restricted by role',
+    restrictedFinancialData: 'Detailed accounting data is hidden for your current role.',
+  },
+
+  French: {
+    pageTitle: 'Analyse financière',
+    generatedOn: 'Analyse opérationnelle générée le',
+    loadingInsights: 'Chargement des analyses financières...',
+    failedLoad: 'Impossible de charger les données financières',
+
+    roi: 'Retour sur investissement',
+    profitable: 'Position rentable',
+    negative: 'Position négative',
+
+    operatingMargin: 'Marge opérationnelle',
+    revenueVsCost: 'Performance revenus vs coûts',
+
+    burnRate: 'Taux de consommation / Mois',
+    monthlyAverage: 'Moyenne mensuelle dépenses + salaires',
+
+    expenseBreakdown: 'Répartition des dépenses',
+    categorySpend: 'Analyse des dépenses par catégorie',
+    liveData: 'Données en direct',
+
+    noExpenseData: 'Aucune donnée de catégorie disponible.',
+
+    invoiceOverview: 'Vue des statuts des factures',
+    invoiceDistribution: 'Distribution des états actuels des factures',
+
+    paid: 'Payées',
+    pending: 'En attente',
+    cancelled: 'Annulées',
+
+    realtimeSummary: 'Résumé temps réel',
+    netFinancial: 'Position financière nette',
+
+    netText1: 'Le revenu total actuel est de',
+    netText2: 'tandis que les dépenses et salaires atteignent',
+
+    totalRevenue: 'Revenus totaux',
+    netResult: 'Résultat net',
+
+    openPowerBI: 'Ouvrir Power BI pour analyse avancée',
+
+    topProjects: 'Top projets par valeur',
+    backendData: 'Utilisation des données backend',
+
+    project: 'Projet',
+    client: 'Client',
+    totalValue: 'Valeur totale',
+    displayedValue: 'Valeur affichée',
+    trend: 'Tendance',
+
+    noProjects: 'Aucune donnée projet disponible',
+    restrictedByRole: 'Restreint par rôle',
+    restrictedFinancialData: 'Les données comptables détaillées sont masquées pour votre rôle.',
+  },
+}
 
 function FinancialAnalysis() {
+  const language = localStorage.getItem('language') || 'English'
+  const t = translations[language] || translations.English
+  const role = getCurrentUserRole()
+  const canViewInvoices = canAccessResource('invoices', role)
+  const canViewExpenses = canAccessResource('expenses', role)
+  const canViewSalaries = canAccessResource('salaries', role)
+  const canViewProjects = canAccessResource('projects', role)
+
   const [invoices, setInvoices] = useState([])
   const [expenses, setExpenses] = useState([])
   const [salaries, setSalaries] = useState([])
   const [projects, setProjects] = useState([])
-  const [importType, setImportType] = useState('invoices')
-const [importRows, setImportRows] = useState([])
-const [importFileName, setImportFileName] = useState('')
-const [importErrors, setImportErrors] = useState([])
+  const [summary, setSummary] = useState(null)
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -20,26 +137,20 @@ const [importErrors, setImportErrors] = useState([])
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [inv, exp, sal, proj] = await Promise.all([
-          fetch(`${API_BASE_URL}/invoices`),
-          fetch(`${API_BASE_URL}/expenses`),
-          fetch(`${API_BASE_URL}/salaries`),
-          fetch(`${API_BASE_URL}/projects`),
+        const summaryData = await readOptionalData(`${API_BASE_URL}/dashboard/summary`, null)
+        setSummary(summaryData)
+
+        const [invData, expData, salData, projData] = await Promise.all([
+          canViewInvoices ? readOptionalData(`${API_BASE_URL}/invoices`) : Promise.resolve([]),
+          canViewExpenses && !summaryData ? readOptionalData(`${API_BASE_URL}/expenses`) : Promise.resolve([]),
+          canViewSalaries && !summaryData ? readOptionalData(`${API_BASE_URL}/salaries`) : Promise.resolve([]),
+          canViewProjects ? readOptionalData(`${API_BASE_URL}/projects`) : Promise.resolve([]),
         ])
 
-        const invData = await inv.json()
-        const expData = await exp.json()
-        const salData = await sal.json()
-        const projData = await proj.json()
-
-        if (!inv.ok || !exp.ok || !sal.ok || !proj.ok) {
-          throw new Error('Failed to load financial analysis data')
-        }
-
-        setInvoices(invData.data || [])
-        setExpenses(expData.data || [])
-        setSalaries(Array.isArray(salData) ? salData : [])
-        setProjects(projData.data || [])
+        setInvoices(invData)
+        setExpenses(expData)
+        setSalaries(salData)
+        setProjects(projData)
       } catch (err) {
         setError(err.message)
       } finally {
@@ -48,36 +159,37 @@ const [importErrors, setImportErrors] = useState([])
     }
 
     fetchData()
-  }, [])
+  }, [canViewInvoices, canViewExpenses, canViewSalaries, canViewProjects])
 
-  const totalRevenue = useMemo(
-    () => invoices.reduce((sum, i) => sum + Number(i.amount || 0), 0),
-    [invoices]
-  )
+  const summaryTotals = summary?.totals || {}
+  const summaryInvoiceStatus = summary?.invoiceStatus || {}
 
-  const totalExpenses = useMemo(
-    () => expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0),
-    [expenses]
-  )
+  const totalRevenue = summaryTotals.revenue ?? invoices.reduce((sum, i) => sum + Number(i.amount || 0), 0)
+  const totalExpenses = summaryTotals.expenses ?? expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0)
+  const totalSalaries = summaryTotals.salaries ?? salaries.reduce((sum, s) => sum + Number(s.amount_paid || 0), 0)
+  const netProfit = summaryTotals.netProfit ?? totalRevenue - totalExpenses - totalSalaries
+  const margin =
+    summaryTotals.profitMargin != null
+      ? Number(summaryTotals.profitMargin).toFixed(1)
+      : totalRevenue > 0
+      ? ((netProfit / totalRevenue) * 100).toFixed(1)
+      : '0.0'
 
-  const totalSalaries = useMemo(
-    () => salaries.reduce((sum, s) => sum + Number(s.amount_paid || 0), 0),
-    [salaries]
-  )
+  const burnRate = (
+    (totalExpenses + totalSalaries) /
+    12
+  ).toFixed(0)
 
-  const netProfit = totalRevenue - totalExpenses - totalSalaries
-
-  const margin = totalRevenue > 0
-    ? ((netProfit / totalRevenue) * 100).toFixed(1)
-    : '0.0'
-
-  const burnRate = ((totalExpenses + totalSalaries) / 12).toFixed(0)
-
-  const paidInvoices = invoices.filter((i) => i.status === 'Paid').length
-  const pendingInvoices = invoices.filter((i) => i.status === 'Pending').length
-  const cancelledInvoices = invoices.filter((i) => i.status === 'Cancelled').length
+  const paidInvoices = summaryInvoiceStatus.Paid ?? invoices.filter((i) => i.status === 'Paid').length
+  const pendingInvoices = summaryInvoiceStatus.Pending ?? invoices.filter((i) => i.status === 'Pending').length
+  const cancelledInvoices = summaryInvoiceStatus.Cancelled ?? invoices.filter((i) => i.status === 'Cancelled').length
 
   const categoryBreakdown = useMemo(() => {
+    if (summary?.expenseByCategory) return summary.expenseByCategory.map((item) => ({
+      name: item.name,
+      value: Number(item.value ?? item.amount ?? 0),
+    }))
+
     return Object.entries(
       expenses.reduce((acc, exp) => {
         const key = exp.Category?.name || 'Other'
@@ -87,13 +199,15 @@ const [importErrors, setImportErrors] = useState([])
     )
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-  }, [expenses])
+  }, [expenses, summary])
 
   const topProjects = useMemo(() => {
+    if (summary?.topProjects) return summary.topProjects
+
     return [...projects]
       .sort((a, b) => Number(b.total_value || 0) - Number(a.total_value || 0))
       .slice(0, 5)
-  }, [projects])
+  }, [projects, summary])
 
   const currentDate = new Date().toLocaleDateString()
 
@@ -101,9 +215,9 @@ const [importErrors, setImportErrors] = useState([])
     return (
       <div className="fa-page">
         <PageHeader
-  title="Financial Analysis"
-  subtitle={`Operational analysis generated on ${currentDate}`}
-/>
+          title={t.pageTitle}
+          subtitle={`${t.generatedOn} ${currentDate}`}
+        />
       </div>
     )
   }
@@ -111,254 +225,44 @@ const [importErrors, setImportErrors] = useState([])
   if (error) {
     return (
       <div className="fa-page">
-       <PageHeader
-  title="Financial Analysis"
-  subtitle="Loading financial insights..."
-/>
+        <PageHeader
+          title={t.pageTitle}
+          subtitle={t.loadingInsights}
+        />
       </div>
     )
   }
-  const requiredColumns = {
-  invoices: ['amount', 'issue_date', 'ClientId', 'ProjectId'],
-  expenses: ['amount', 'date', 'CategoryId', 'ProjectId'],
-  salaries: ['month', 'year', 'amount_paid', 'payment_date', 'EmployeeId'],
-}
-
-const parseCsv = (text) => {
-  const lines = text.trim().split('\n')
-  const headers = lines[0].split(',').map((h) => h.trim())
-
-  return lines.slice(1).map((line) => {
-    const values = line.split(',').map((v) => v.trim())
-    return headers.reduce((obj, header, index) => {
-      obj[header] = values[index] || ''
-      return obj
-    }, {})
-  })
-}
-
-const validateImportRows = (rows, type) => {
-  const required = requiredColumns[type]
-  const errors = []
-
-  rows.forEach((row, index) => {
-    required.forEach((col) => {
-      if (!row[col]) {
-        errors.push(`Row ${index + 1}: Missing ${col}`)
-      }
-    })
-  })
-
-  return errors
-}
-
-const handleImportFile = (e) => {
-  const file = e.target.files[0]
-  if (!file) return
-
-  setImportFileName(file.name)
-  setImportRows([])
-  setImportErrors([])
-
-  const extension = file.name.split('.').pop().toLowerCase()
-  const reader = new FileReader()
-
-  reader.onload = (event) => {
-    let rows = []
-
-    if (extension === 'csv') {
-      rows = parseCsv(event.target.result)
-    } else if (extension === 'xlsx' || extension === 'xls') {
-      const workbook = XLSX.read(event.target.result, { type: 'array' })
-      const sheetName = workbook.SheetNames[0]
-      const sheet = workbook.Sheets[sheetName]
-      rows = XLSX.utils.sheet_to_json(sheet)
-    } else {
-      showToastMessage('Unsupported file format', 'error')
-      return
-    }
-
-    const errors = validateImportRows(rows, importType)
-
-    setImportRows(rows)
-    setImportErrors(errors)
-
-    if (errors.length > 0) {
-      showToastMessage('File loaded with validation errors', 'error')
-    } else {
-      showToastMessage('File loaded successfully')
-    }
-  }
-
-  if (extension === 'csv') {
-    reader.readAsText(file)
-  } else {
-    reader.readAsArrayBuffer(file)
-  }
-}
-
-const handleImportData = async () => {
-  if (!importRows.length) {
-    showToastMessage('Please upload a file first', 'error')
-    return
-  }
-
-  if (importErrors.length > 0) {
-    showToastMessage('Fix validation errors before importing', 'error')
-    return
-  }
-
-  try {
-    const endpoint =
-      importType === 'invoices'
-        ? 'invoices'
-        : importType === 'expenses'
-        ? 'expenses'
-        : 'salaries'
-
-    const createdItems = []
-
-    for (const row of importRows) {
-      const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(row),
-      })
-
-      const result = await response.json()
-
-      if (!response.ok) {
-        throw new Error(result.message || 'Import failed')
-      }
-
-      createdItems.push(result.data || result)
-    }
-
-    if (importType === 'invoices') {
-      setInvoices((prev) => [...createdItems.reverse(), ...prev])
-    } else if (importType === 'expenses') {
-      setExpenses((prev) => [...createdItems.reverse(), ...prev])
-    } else {
-      setSalaries((prev) => [...createdItems.reverse(), ...prev])
-    }
-
-    setImportRows([])
-    setImportFileName('')
-    setImportErrors([])
-    showToastMessage('Data imported successfully')
-  } catch (err) {
-    showToastMessage(err.message, 'error')
-  }
-}
-
-const renderImportTab = () => (
-  <div className="import-panel">
-    <div className="import-header">
-      <div>
-        <h3>Import Financial Data</h3>
-        <p>Upload CSV or Excel files to insert invoices, expenses or salaries.</p>
-      </div>
-      <span className="import-badge">CSV / Excel</span>
-    </div>
-
-    <div className="import-controls">
-      <div className="import-field">
-        <label>Dataset Type</label>
-        <select
-          value={importType}
-          onChange={(e) => {
-            setImportType(e.target.value)
-            setImportRows([])
-            setImportErrors([])
-            setImportFileName('')
-          }}
-        >
-          <option value="invoices">Invoices</option>
-          <option value="expenses">Expenses</option>
-          <option value="salaries">Salaries</option>
-        </select>
-      </div>
-
-      <div className="import-field">
-        <label>Upload File</label>
-        <input type="file" accept=".csv,.xlsx,.xls" onChange={handleImportFile} />
-      </div>
-
-      <button className="import-btn" onClick={handleImportData}>
-        Import Data
-      </button>
-    </div>
-
-    <div className="import-requirements">
-      <strong>Required columns:</strong>{' '}
-      {requiredColumns[importType].join(', ')}
-    </div>
-
-    {importFileName && (
-      <p className="import-file-name">Selected file: {importFileName}</p>
-    )}
-
-    {importErrors.length > 0 && (
-      <div className="import-errors">
-        {importErrors.slice(0, 5).map((err, index) => (
-          <p key={index}>{err}</p>
-        ))}
-      </div>
-    )}
-
-    {importRows.length > 0 && (
-      <div className="import-preview">
-        <h4>Preview</h4>
-        <table>
-          <thead>
-            <tr>
-              {Object.keys(importRows[0]).map((key) => (
-                <th key={key}>{key}</th>
-              ))}
-            </tr>
-          </thead>
-
-          <tbody>
-            {importRows.slice(0, 10).map((row, index) => (
-              <tr key={index}>
-                {Object.keys(importRows[0]).map((key) => (
-                  <td key={key}>{row[key] || '-'}</td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )}
-  </div>
-)
 
   return (
     <div className="fa-page">
       <PageHeader
-  title="Financial Analysis"
-  subtitle={error}
-/>
+        title={t.pageTitle}
+        subtitle={error}
+      />
 
       <section className="fa-kpis">
         <div className="fa-kpi-card">
-          <p>Return on Investment</p>
+          <p>{t.roi}</p>
           <h3>{margin}%</h3>
           <span className={netProfit >= 0 ? 'positive' : 'negative'}>
-            {netProfit >= 0 ? 'Profitable position' : 'Negative position'}
+            {netProfit >= 0 ? t.profitable : t.negative}
           </span>
+
           <div className="progress">
             <div
               className="fill green"
-              style={{ width: `${Math.min(Math.max(Number(margin), 0), 100)}%` }}
+              style={{
+                width: `${Math.min(Math.max(Number(margin), 0), 100)}%`,
+              }}
             ></div>
           </div>
         </div>
 
         <div className="fa-kpi-card">
-          <p>Operating Margin</p>
+          <p>{t.operatingMargin}</p>
           <h3>{margin}%</h3>
-          <span className="neutral">Revenue vs cost performance</span>
+          <span className="neutral">{t.revenueVsCost}</span>
+
           <div className="mini-bars">
             <div></div>
             <div></div>
@@ -370,9 +274,10 @@ const renderImportTab = () => (
         </div>
 
         <div className="fa-kpi-card">
-          <p>Burn Rate / Mo</p>
+          <p>{t.burnRate}</p>
           <h3>${Number(burnRate).toLocaleString()}</h3>
-          <span className="negative">Expenses + salaries monthly average</span>
+          <span className="negative">{t.monthlyAverage}</span>
+
           <div className="progress">
             <div className="fill red" style={{ width: '80%' }}></div>
           </div>
@@ -382,10 +287,11 @@ const renderImportTab = () => (
       <section className="fa-variance">
         <div className="fa-section-top">
           <div>
-            <span className="tag">Expense Breakdown</span>
-            <h4>Category Spend Analysis</h4>
+            <span className="tag">{t.expenseBreakdown}</span>
+            <h4>{t.categorySpend}</h4>
           </div>
-          <button className="export-btn">Live Data</button>
+
+          <button className="export-btn">{t.liveData}</button>
         </div>
 
         <div className="variance-list">
@@ -393,20 +299,30 @@ const renderImportTab = () => (
             categoryBreakdown.slice(0, 6).map((item) => (
               <div className="variance-row" key={item.name}>
                 <span>{item.name}</span>
+
                 <div className="variance-bars">
                   <div className="budget" style={{ width: '100%' }}></div>
+
                   <div
                     className="actual"
                     style={{
-                      width: `${Math.min((item.value / Math.max(categoryBreakdown[0].value, 1)) * 100, 100)}%`,
+                      width: `${Math.min(
+                        (item.value /
+                          Math.max(categoryBreakdown[0].value, 1)) *
+                          100,
+                        100
+                      )}%`,
                     }}
                   ></div>
                 </div>
-                <span className="neutral">${item.value.toLocaleString()}</span>
+
+                <span className="neutral">
+                  ${item.value.toLocaleString()}
+                </span>
               </div>
             ))
           ) : (
-            <p>No expense category data available.</p>
+            <p>{t.noExpenseData}</p>
           )}
         </div>
       </section>
@@ -415,66 +331,72 @@ const renderImportTab = () => (
         <section className="trend-card">
           <div className="fa-section-top simple">
             <div>
-              <h4>Invoice Status Overview</h4>
-              <p>Distribution of current invoice states</p>
+              <h4>{t.invoiceOverview}</h4>
+              <p>{t.invoiceDistribution}</p>
             </div>
           </div>
 
           <div className="trend-bars">
             <div className="trend-col">
               <div className="bar fa-bar-paid"></div>
-              <span>Paid ({paidInvoices})</span>
+              <span>{t.paid} ({paidInvoices})</span>
             </div>
+
             <div className="trend-col">
               <div className="bar fa-bar-pending"></div>
-              <span>Pending ({pendingInvoices})</span>
+              <span>{t.pending} ({pendingInvoices})</span>
             </div>
+
             <div className="trend-col">
               <div className="bar fa-bar-cancelled"></div>
-              <span>Cancelled ({cancelledInvoices})</span>
+              <span>{t.cancelled} ({cancelledInvoices})</span>
             </div>
           </div>
         </section>
 
         <section className="forecast-card-analysis">
-          <span className="tag light">Real-Time Summary</span>
-          <h4>Net Financial Position</h4>
+          <span className="tag light">{t.realtimeSummary}</span>
+
+          <h4>{t.netFinancial}</h4>
+
           <p>
-            Total revenue currently stands at ${totalRevenue.toLocaleString()}, while total
-            expenses and salaries amount to ${(totalExpenses + totalSalaries).toLocaleString()}.
+            {t.netText1} ${totalRevenue.toLocaleString()}, {t.netText2}{' '}
+            ${(totalExpenses + totalSalaries).toLocaleString()}.
           </p>
 
           <div className="forecast-stats-box">
             <div>
-              <span>Total Revenue</span>
+              <span>{t.totalRevenue}</span>
               <strong>${totalRevenue.toLocaleString()}</strong>
             </div>
+
             <div>
-              <span>Net Result</span>
+              <span>{t.netResult}</span>
               <strong>${netProfit.toLocaleString()}</strong>
             </div>
           </div>
 
-          <button className="white-btn">Open Power BI for Deep Analysis</button>
+          <button className="white-btn">{t.openPowerBI}</button>
         </section>
       </div>
 
       <section className="fa-table-card">
         <div className="fa-section-top simple">
-          <h4>Top Projects by Value</h4>
-          <button className="text-link">Using backend data</button>
+          <h4>{t.topProjects}</h4>
+          <button className="text-link">{t.backendData}</button>
         </div>
 
         <table>
           <thead>
             <tr>
-              <th>Project</th>
-              <th>Client</th>
-              <th>Total Value</th>
-              <th>Displayed Value</th>
-              <th>Trend</th>
+              <th>{t.project}</th>
+              <th>{t.client}</th>
+              <th>{t.totalValue}</th>
+              <th>{t.displayedValue}</th>
+              <th>{t.trend}</th>
             </tr>
           </thead>
+
           <tbody>
             {topProjects.length > 0 ? (
               topProjects.map((p) => (
@@ -488,7 +410,7 @@ const renderImportTab = () => (
               ))
             ) : (
               <tr>
-                <td colSpan="5">No project data available</td>
+                <td colSpan="5">{t.noProjects}</td>
               </tr>
             )}
           </tbody>

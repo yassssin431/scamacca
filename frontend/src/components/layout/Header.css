@@ -1,61 +1,96 @@
 .app-header {
-  background: rgba(255, 255, 255, 0.9);
-  border-bottom: 1px solid #e5e7eb;
-  padding: 20px 28px;
+  background: white;
+  border-bottom: 1px solid #e5eaf0;
+  padding: 18px 28px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 18px;
-  backdrop-filter: blur(10px);
 }
 
-.app-header-left h1 {
-  margin: 0 0 6px;
-  font-size: 24px;
+.app-header h1 {
+  font-size: 20px;
   font-weight: 800;
   color: #041627;
-  font-family: 'Manrope', sans-serif;
-}
-
-.app-header-left p {
   margin: 0;
-  font-size: 13px;
-  color: #64748b;
 }
 
-.app-header-right {
+.app-header p {
+  color: #64748b;
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.app-header-right,
+.header-actions {
   display: flex;
   align-items: center;
+  gap: 12px;
 }
 
-.header-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+.header-icon-btn {
+  width: 38px;
+  height: 38px;
   border-radius: 999px;
+  border: 1px solid #e5eaf0;
+  background: #f8fafc;
+  color: #041627;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.header-icon-btn .material-symbols-outlined {
+  font-size: 21px;
+}
+
+.connected-pill {
   background: #ecfdf3;
   color: #006c4a;
+  padding: 9px 13px;
+  border-radius: 999px;
   font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.header-badge-dot {
-  width: 8px;
-  height: 8px;
+.connected-pill span {
+  width: 7px;
+  height: 7px;
   border-radius: 999px;
   background: #006c4a;
 }
 
-@media (max-width: 1100px) {
-  .app-header {
-    padding: 18px 20px;
-    flex-direction: column;
-    align-items: flex-start;
-  }
+body.dark-mode .app-header {
+  background: #0b1724;
+  border-bottom-color: #203245;
+}
 
-  .app-header-left h1 {
-    font-size: 21px;
-  }
+body.dark-mode .app-header h1 {
+  color: #f8fafc;
+}
+
+body.dark-mode .app-header p {
+  color: #9fb0c5;
+}
+
+body.dark-mode .header-icon-btn {
+  background: #101f2e;
+  border-color: #203245;
+  color: #d9e7f5;
+}
+
+body.dark-mode .header-icon-btn:hover {
+  background: #172a3d;
+}
+
+body.dark-mode .connected-pill {
+  background: rgba(0, 122, 85, 0.18);
+  color: #92f3c5;
+}
+
+body.dark-mode .connected-pill span {
+  background: #41d394;
 }

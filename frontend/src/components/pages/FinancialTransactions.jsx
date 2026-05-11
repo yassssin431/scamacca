@@ -7,17 +7,323 @@ import Toast from '../common/Toast'
 import LoadingState from '../common/LoadingState'
 import EmptyState from '../common/EmptyState'
 import * as XLSX from 'xlsx'
+import { authFetch } from '../../services/authFetch'
+import { getCurrentUserRole } from '../../services/auth'
+import { canAccessResource, canCreateResource, canDeleteResource, canUpdateResource } from '../../services/permissions'
+
+const translations = {
+  English: {
+    pageTitle: 'Financial Transactions',
+    revenuesSubtitle: 'Manage invoice-based revenue records',
+    expensesSubtitle: 'Manage operational expense records',
+    salariesSubtitle: 'Manage employee salary records',
+    importSubtitle: 'Import and prepare financial data',
+
+    revenues: 'Revenues',
+    expenses: 'Expenses',
+    salaries: 'Salaries',
+    importData: 'Import Data',
+
+    addNew: '+ Add New',
+    invoice: 'Invoice',
+    expense: 'Expense',
+    salary: 'Salary',
+
+    totalRevenue: 'Total Revenue',
+    totalExpenses: 'Total Expenses',
+    totalSalaries: 'Total Salaries',
+    importWorkspace: 'Import Workspace',
+    ready: 'Ready',
+
+    syncStatus: 'Sync Status',
+    connected: 'Connected',
+
+    search: 'Search',
+    searchPlaceholder: 'Search records...',
+    status: 'Status',
+    allStatus: 'All Status',
+    pending: 'Pending',
+    paid: 'Paid',
+    cancelled: 'Cancelled',
+    from: 'From',
+    to: 'To',
+    min: 'Min',
+    max: 'Max',
+    any: 'Any',
+    reset: 'Reset',
+    exportExcel: 'Export Excel',
+
+    edit: 'Edit',
+    delete: 'Delete',
+    actions: '{t.actions}',
+    create: 'Create',
+    save: 'Save',
+    cancel: 'Cancel',
+
+    allInvoices: 'All Invoices',
+    allExpenses: 'All Expenses',
+    allSalaries: 'All Salaries',
+    visibleRecords: 'visible records from',
+    totalInvoicesRecords: 'total invoices',
+    totalExpensesRecords: 'total expenses',
+    totalSalariesRecords: 'total salaries',
+
+    reference: 'Reference',
+    client: 'Client',
+    project: 'Project',
+    issueDate: 'Issue Date',
+    dueDate: 'Due Date',
+    amount: 'Amount',
+    date: 'Date',
+    description: 'Description',
+    category: 'Category',
+    supplier: 'Supplier',
+    month: 'Month',
+    year: 'Year',
+    amountPaid: 'Amount Paid',
+    paymentDate: 'Payment Date',
+    employeeId: 'Employee ID',
+
+    noInvoices: 'No invoices found',
+    noInvoicesMessage: 'No invoice records match your current filters.',
+    noExpenses: 'No expenses found',
+    noExpensesMessage: 'No expense records match your current filters.',
+    noSalaries: 'No salaries found',
+    noSalariesMessage: 'No salary records match your current filters.',
+
+    loadingRevenue: 'Loading revenue records...',
+    loadingExpenses: 'Loading expense records...',
+    loadingSalaries: 'Loading salary records...',
+    revenueFailed: 'Revenue loading failed',
+    expenseFailed: 'Expense loading failed',
+    salaryFailed: 'Salary loading failed',
+
+    importFinancialData: 'Import Financial Data',
+    uploadMessage: 'Upload CSV or Excel files to insert invoices, expenses or salaries.',
+    datasetType: 'Dataset Type',
+    uploadFile: 'Upload File',
+    requiredColumnsText: 'Required columns',
+    selectedFile: 'Selected file',
+    preview: 'Preview',
+    rows: 'rows',
+
+    recordsLoaded: 'Records Loaded',
+    backendSources: 'Backend Sources',
+    backendConnectedText: '/api/invoices, /api/expenses and /api/salaries connected successfully',
+
+    addInvoice: 'Add Invoice',
+    addExpense: 'Add Expense',
+    addSalary: 'Add Salary',
+    editInvoice: 'Edit Invoice',
+    editExpense: 'Edit Expense',
+    editSalary: 'Edit Salary',
+
+    selectClient: 'Select Client',
+    selectProject: 'Select Project',
+    selectCategory: 'Select Category',
+    selectSupplier: 'Select Supplier (optional)',
+    selectEmployee: 'Select Employee',
+    selectMonth: 'Select Month',
+
+    noDataExport: 'No data available to export',
+    excelExported: 'Excel file exported successfully',
+    unsupportedFormat: 'Unsupported file format',
+    fileLoadedErrors: 'File loaded with validation errors',
+    fileLoaded: 'File loaded successfully',
+    uploadFirst: 'Please upload a file first',
+    fixImportErrors: 'Fix validation errors before importing',
+    importFailed: 'Import failed',
+    dataImported: 'Data imported successfully',
+
+    invoiceDeleted: 'Invoice deleted successfully',
+    expenseDeleted: 'Expense deleted successfully',
+    salaryDeleted: 'Salary deleted successfully',
+    failedDeleteInvoice: 'Failed to delete invoice',
+    failedDeleteExpense: 'Failed to delete expense',
+    failedDeleteSalary: 'Failed to delete salary',
+
+    deleteConfirmTitle: 'Delete',
+    deleteConfirmMessageStart: 'Are you sure you want to delete this',
+    deleteConfirmMessageEnd: 'This action cannot be undone.',
+
+    validationInvoice: 'Please fill amount, issue date, client and project.',
+    validationExpense: 'Please fill amount, date, category and project.',
+    validationRequired: 'Please fill all required fields.',
+
+    sourceInvoices: 'Real data loaded from /api/invoices',
+    sourceExpenses: 'Real data loaded from /api/expenses',
+    sourceSalaries: 'Real data loaded from /api/salaries',
+    sourceImport: 'Local preview with backend insert after validation',
+    importHelp: 'Upload CSV or Excel data for invoices, expenses or salaries',
+  },
+
+  French: {
+    pageTitle: 'Transactions financières',
+    revenuesSubtitle: 'Gérer les revenus issus des factures',
+    expensesSubtitle: 'Gérer les dépenses opérationnelles',
+    salariesSubtitle: 'Gérer les salaires des employés',
+    importSubtitle: 'Importer et préparer les données financières',
+
+    revenues: 'Revenus',
+    expenses: 'Dépenses',
+    salaries: 'Salaires',
+    importData: 'Importer des données',
+
+    addNew: '+ Ajouter',
+    invoice: 'Facture',
+    expense: 'Dépense',
+    salary: 'Salaire',
+
+    totalRevenue: 'Revenus totaux',
+    totalExpenses: 'Dépenses totales',
+    totalSalaries: 'Salaires totaux',
+    importWorkspace: 'Espace d’importation',
+    ready: 'Prêt',
+
+    syncStatus: 'État de synchronisation',
+    connected: 'Connecté',
+
+    search: 'Recherche',
+    searchPlaceholder: 'Rechercher des enregistrements...',
+    status: 'Statut',
+    allStatus: 'Tous les statuts',
+    pending: 'En attente',
+    paid: 'Payée',
+    cancelled: 'Annulée',
+    from: 'De',
+    to: 'À',
+    min: 'Min',
+    max: 'Max',
+    any: 'Tous',
+    reset: 'Réinitialiser',
+    exportExcel: 'Exporter Excel',
+
+    edit: 'Modifier',
+    delete: 'Supprimer',
+    actions: '{t.actions}',
+    create: 'Créer',
+    save: 'Enregistrer',
+    cancel: 'Annuler',
+
+    allInvoices: 'Toutes les factures',
+    allExpenses: 'Toutes les dépenses',
+    allSalaries: 'Tous les salaires',
+    visibleRecords: 'enregistrements visibles sur',
+    totalInvoicesRecords: 'factures totales',
+    totalExpensesRecords: 'dépenses totales',
+    totalSalariesRecords: 'salaires totaux',
+
+    reference: 'Référence',
+    client: 'Client',
+    project: 'Projet',
+    issueDate: 'Date d’émission',
+    dueDate: 'Date d’échéance',
+    amount: 'Montant',
+    date: 'Date',
+    description: 'Description',
+    category: 'Catégorie',
+    supplier: 'Fournisseur',
+    month: 'Mois',
+    year: 'Année',
+    amountPaid: 'Montant payé',
+    paymentDate: 'Date de paiement',
+    employeeId: 'ID Employé',
+
+    noInvoices: 'Aucune facture trouvée',
+    noInvoicesMessage: 'Aucune facture ne correspond aux filtres actuels.',
+    noExpenses: 'Aucune dépense trouvée',
+    noExpensesMessage: 'Aucune dépense ne correspond aux filtres actuels.',
+    noSalaries: 'Aucun salaire trouvé',
+    noSalariesMessage: 'Aucun salaire ne correspond aux filtres actuels.',
+
+    loadingRevenue: 'Chargement des revenus...',
+    loadingExpenses: 'Chargement des dépenses...',
+    loadingSalaries: 'Chargement des salaires...',
+    revenueFailed: 'Échec du chargement des revenus',
+    expenseFailed: 'Échec du chargement des dépenses',
+    salaryFailed: 'Échec du chargement des salaires',
+
+    importFinancialData: 'Importer des données financières',
+    uploadMessage: 'Importer des fichiers CSV ou Excel pour insérer des factures, dépenses ou salaires.',
+    datasetType: 'Type de données',
+    uploadFile: 'Téléverser un fichier',
+    requiredColumnsText: 'Colonnes requises',
+    selectedFile: 'Fichier sélectionné',
+    preview: 'Aperçu',
+    rows: 'lignes',
+
+    recordsLoaded: 'Enregistrements chargés',
+    backendSources: 'Sources backend',
+    backendConnectedText: '/api/invoices, /api/expenses et /api/salaries connectés avec succès',
+
+    addInvoice: 'Ajouter une facture',
+    addExpense: 'Ajouter une dépense',
+    addSalary: 'Ajouter un salaire',
+    editInvoice: 'Modifier la facture',
+    editExpense: 'Modifier la dépense',
+    editSalary: 'Modifier le salaire',
+
+    selectClient: 'Sélectionner un client',
+    selectProject: 'Sélectionner un projet',
+    selectCategory: 'Sélectionner une catégorie',
+    selectSupplier: 'Sélectionner un fournisseur (optionnel)',
+    selectEmployee: 'Sélectionner un employé',
+    selectMonth: 'Sélectionner un mois',
+
+    noDataExport: 'Aucune donnée disponible à exporter',
+    excelExported: 'Fichier Excel exporté avec succès',
+    unsupportedFormat: 'Format de fichier non pris en charge',
+    fileLoadedErrors: 'Fichier chargé avec des erreurs de validation',
+    fileLoaded: 'Fichier chargé avec succès',
+    uploadFirst: 'Veuillez d’abord téléverser un fichier',
+    fixImportErrors: 'Corrigez les erreurs de validation avant l’importation',
+    importFailed: 'Échec de l’importation',
+    dataImported: 'Données importées avec succès',
+
+    invoiceDeleted: 'Facture supprimée avec succès',
+    expenseDeleted: 'Dépense supprimée avec succès',
+    salaryDeleted: 'Salaire supprimé avec succès',
+    failedDeleteInvoice: 'Échec de la suppression de la facture',
+    failedDeleteExpense: 'Échec de la suppression de la dépense',
+    failedDeleteSalary: 'Échec de la suppression du salaire',
+
+    deleteConfirmTitle: 'Supprimer',
+    deleteConfirmMessageStart: 'Voulez-vous vraiment supprimer cette entrée',
+    deleteConfirmMessageEnd: 'Cette action est irréversible.',
+
+    validationInvoice: 'Veuillez remplir le montant, la date d’émission, le client et le projet.',
+    validationExpense: 'Veuillez remplir le montant, la date, la catégorie et le projet.',
+    validationRequired: 'Veuillez remplir tous les champs obligatoires.',
+
+    sourceInvoices: 'Données réelles chargées depuis /api/invoices',
+    sourceExpenses: 'Données réelles chargées depuis /api/expenses',
+    sourceSalaries: 'Données réelles chargées depuis /api/salaries',
+    sourceImport: 'Aperçu local avec insertion backend après validation',
+    importHelp: 'Téléversez des données CSV ou Excel pour les factures, dépenses ou salaires',
+  },
+}
 
 function FinancialTransactions() {
   const [activeTab, setActiveTab] = useState('revenues')
+  const language = localStorage.getItem('language') || 'English'
+const t = translations[language] || translations.English
+  const role = getCurrentUserRole()
+  const canViewInvoices = canAccessResource('invoices', role)
+  const canViewExpenses = canAccessResource('expenses', role)
+  const canViewSalaries = canAccessResource('salaries', role)
+  const canViewProjects = canAccessResource('projects', role)
+  const canViewCategories = canAccessResource('categories', role)
+  const canViewSuppliers = canAccessResource('fournisseurs', role)
+  const canViewEmployees = canAccessResource('employees', role)
+  const canViewClients = canAccessResource('clients', role)
 
   const [invoices, setInvoices] = useState([])
   const [expenses, setExpenses] = useState([])
   const [salaries, setSalaries] = useState([])
 
-  const [loadingInvoices, setLoadingInvoices] = useState(true)
-  const [loadingExpenses, setLoadingExpenses] = useState(true)
-  const [loadingSalaries, setLoadingSalaries] = useState(true)
+  const [loadingInvoices, setLoadingInvoices] = useState(canViewInvoices)
+  const [loadingExpenses, setLoadingExpenses] = useState(canViewExpenses)
+  const [loadingSalaries, setLoadingSalaries] = useState(canViewSalaries)
 
   const [errorInvoices, setErrorInvoices] = useState('')
   const [errorExpenses, setErrorExpenses] = useState('')
@@ -121,11 +427,11 @@ const [editInvoiceData, setEditInvoiceData] = useState({
   useEffect(() => {
     const fetchInvoices = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/invoices`)
+        const response = await authFetch(`${API_BASE_URL}/invoices`)
         const result = await response.json()
 
-        if (!response.ok) throw new Error(result.message || 'Failed to fetch invoices')
-        setInvoices(result.data || [])
+        if (!response.ok) throw new Error(result.message || t.revenueFailed)
+        setInvoices(Array.isArray(result) ? result : result?.data || [])
       } catch (err) {
         setErrorInvoices(err.message)
       } finally {
@@ -135,11 +441,11 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 
     const fetchExpenses = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/expenses`)
+        const response = await authFetch(`${API_BASE_URL}/expenses`)
         const result = await response.json()
 
-        if (!response.ok) throw new Error(result.message || 'Failed to fetch expenses')
-        setExpenses(result.data || [])
+        if (!response.ok) throw new Error(result.message || t.expenseFailed)
+        setExpenses(Array.isArray(result) ? result : result?.data || [])
       } catch (err) {
         setErrorExpenses(err.message)
       } finally {
@@ -149,11 +455,11 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 
     const fetchSalaries = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/salaries`)
+        const response = await authFetch(`${API_BASE_URL}/salaries`)
         const result = await response.json()
 
-        if (!response.ok) throw new Error(result.message || 'Failed to fetch salaries')
-        setSalaries(Array.isArray(result) ? result : [])
+        if (!response.ok) throw new Error(result.message || t.salaryFailed)
+        setSalaries(Array.isArray(result) ? result : result?.data || [])
       } catch (err) {
         setErrorSalaries(err.message)
       } finally {
@@ -163,11 +469,11 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 
     const fetchProjects = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/projects`)
+        const response = await authFetch(`${API_BASE_URL}/projects`)
         const result = await response.json()
 
         if (!response.ok) throw new Error(result.message || 'Failed to fetch projects')
-        setProjects(result.data || [])
+        setProjects(Array.isArray(result) ? result : result?.data || [])
       } catch (err) {
         console.error(err.message)
       }
@@ -175,11 +481,11 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 
     const fetchCategories = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/categories`)
+        const response = await authFetch(`${API_BASE_URL}/categories`)
         const result = await response.json()
 
         if (!response.ok) throw new Error(result.message || 'Failed to fetch categories')
-        setCategories(Array.isArray(result) ? result : [])
+        setCategories(Array.isArray(result) ? result : result?.data || [])
       } catch (err) {
         console.error(err.message)
       }
@@ -187,11 +493,11 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 
     const fetchFournisseurs = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/fournisseurs`)
+        const response = await authFetch(`${API_BASE_URL}/fournisseurs`)
         const result = await response.json()
 
         if (!response.ok) throw new Error(result.message || 'Failed to fetch suppliers')
-        setFournisseurs(Array.isArray(result) ? result : [])
+        setFournisseurs(Array.isArray(result) ? result : result?.data || [])
       } catch (err) {
         console.error(err.message)
       }
@@ -199,11 +505,11 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 
     const fetchEmployees = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/employees`)
+        const response = await authFetch(`${API_BASE_URL}/employees`)
         const result = await response.json()
 
         if (!response.ok) throw new Error(result.message || 'Failed to fetch employees')
-        setEmployees(result.data || [])
+        setEmployees(Array.isArray(result) ? result : result?.data || [])
       } catch (err) {
         console.error(err.message)
       }
@@ -211,25 +517,26 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 
     const fetchClients = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/clients`)
+        const response = await authFetch(`${API_BASE_URL}/clients`)
         const result = await response.json()
 
         if (!response.ok) throw new Error(result.message || 'Failed to fetch clients')
-        setClients(result.data || [])
+        setClients(Array.isArray(result) ? result : result?.data || [])
       } catch (err) {
         console.error(err.message)
       }
     }
 
-    fetchInvoices()
-    fetchExpenses()
-    fetchSalaries()
-    fetchProjects()
-    fetchCategories()
-    fetchFournisseurs()
-    fetchEmployees()
-    fetchClients()
-  }, [])
+    if (canViewInvoices) fetchInvoices()
+    if (canViewExpenses) fetchExpenses()
+    if (canViewSalaries) fetchSalaries()
+
+    if (canViewProjects) fetchProjects()
+    if (canViewCategories) fetchCategories()
+    if (canViewSuppliers) fetchFournisseurs()
+    if (canViewEmployees) fetchEmployees()
+    if (canViewClients) fetchClients()
+  }, [canViewInvoices, canViewExpenses, canViewSalaries, canViewProjects, canViewCategories, canViewSuppliers, canViewEmployees, canViewClients, t.revenueFailed, t.expenseFailed, t.salaryFailed])
 
 
   const highlightRecord = (type, id) => {
@@ -254,7 +561,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
   const handleCreateInvoice = async () => {
     try {
       if (!newInvoice.amount || !newInvoice.issue_date || !newInvoice.ClientId || !newInvoice.ProjectId) {
-        alert('Please fill amount, issue date, client and project.')
+        alert(t.validationInvoice)
         return
       }
 
@@ -268,7 +575,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
         ProjectId: Number(newInvoice.ProjectId),
       }
 
-      const response = await fetch(`${API_BASE_URL}/invoices`, {
+      const response = await authFetch(`${API_BASE_URL}/invoices`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -300,7 +607,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
   const handleCreateExpense = async () => {
     try {
       if (!newExpense.amount || !newExpense.date || !newExpense.CategoryId || !newExpense.ProjectId) {
-        alert('Please fill amount, date, category and project.')
+        alert(t.validationExpense)
         return
       }
 
@@ -314,7 +621,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
         ...(newExpense.FournisseurId ? { FournisseurId: Number(newExpense.FournisseurId) } : {}),
       }
 
-      const response = await fetch(`${API_BASE_URL}/expenses`, {
+      const response = await authFetch(`${API_BASE_URL}/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -346,7 +653,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
   const handleCreateSalary = async () => {
     try {
       if (!newSalary.month || !newSalary.year || !newSalary.amount_paid || !newSalary.payment_date || !newSalary.EmployeeId) {
-        alert('Please fill all required fields.')
+        alert(t.validationRequired)
         return
       }
 
@@ -358,7 +665,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
         EmployeeId: Number(newSalary.EmployeeId),
       }
 
-      const response = await fetch(`${API_BASE_URL}/salaries`, {
+      const response = await authFetch(`${API_BASE_URL}/salaries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -407,7 +714,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
   const handleUpdateExpense = async () => {
     try {
       if (!editExpenseData.amount || !editExpenseData.date || !editExpenseData.CategoryId || !editExpenseData.ProjectId) {
-        alert('Please fill amount, date, category and project.')
+        alert(t.validationExpense)
         return
       }
 
@@ -421,7 +728,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
         ...(editExpenseData.FournisseurId ? { FournisseurId: Number(editExpenseData.FournisseurId) } : {}),
       }
 
-      const response = await fetch(`${API_BASE_URL}/expenses/${editingExpense.id}`, {
+      const response = await authFetch(`${API_BASE_URL}/expenses/${editingExpense.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -442,7 +749,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 
   const handleDeleteExpense = async (id) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/expenses/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/expenses/${id}`, {
       method: 'DELETE',
     })
 
@@ -450,9 +757,9 @@ const [editInvoiceData, setEditInvoiceData] = useState({
     if (!response.ok) throw new Error(result.message || 'Failed to delete expense')
 
     setExpenses((prev) => prev.filter((expense) => expense.id !== id))
-    showToastMessage('Expense deleted successfully', 'success')
+    showToastMessage(t.expenseDeleted, 'success')
   } catch (err) {
-    showToastMessage(err.message || 'Failed to delete expense', 'error')
+    showToastMessage(err.message || t.failedDeleteExpense, 'error')
   } finally {
     setShowConfirm(false)
     setSelectedId(null)
@@ -479,7 +786,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
   const handleUpdateSalary = async () => {
     try {
       if (!editSalaryData.month || !editSalaryData.year || !editSalaryData.amount_paid || !editSalaryData.payment_date || !editSalaryData.EmployeeId) {
-        alert('Please fill all required fields.')
+        alert(t.validationRequired)
         return
       }
 
@@ -491,7 +798,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
         EmployeeId: Number(editSalaryData.EmployeeId),
       }
 
-      const response = await fetch(`${API_BASE_URL}/salaries/${editingSalary.id}`, {
+      const response = await authFetch(`${API_BASE_URL}/salaries/${editingSalary.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -512,7 +819,7 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 
  const handleDeleteSalary = async (id) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/salaries/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/salaries/${id}`, {
       method: 'DELETE',
     })
 
@@ -520,9 +827,9 @@ const [editInvoiceData, setEditInvoiceData] = useState({
     if (!response.ok) throw new Error(result.message || 'Failed to delete salary')
 
     setSalaries((prev) => prev.filter((salary) => salary.id !== id))
-    showToastMessage('Salary deleted successfully', 'success')
+    showToastMessage(t.salaryDeleted, 'success')
   } catch (err) {
-    showToastMessage(err.message || 'Failed to delete salary', 'error')
+    showToastMessage(err.message || t.failedDeleteSalary, 'error')
   } finally {
     setShowConfirm(false)
     setSelectedId(null)
@@ -555,7 +862,7 @@ const handleUpdateInvoice = async () => {
       !editInvoiceData.ClientId ||
       !editInvoiceData.ProjectId
     ) {
-      alert('Please fill amount, issue date, client and project.')
+      alert(t.validationInvoice)
       return
     }
 
@@ -569,7 +876,7 @@ const handleUpdateInvoice = async () => {
       ProjectId: Number(editInvoiceData.ProjectId),
     }
 
-    const response = await fetch(`${API_BASE_URL}/invoices/${editingInvoice.id}`, {
+    const response = await authFetch(`${API_BASE_URL}/invoices/${editingInvoice.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -597,7 +904,7 @@ const handleUpdateInvoice = async () => {
 
 const handleDeleteInvoice = async (id) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/invoices/${id}`, {
+    const response = await authFetch(`${API_BASE_URL}/invoices/${id}`, {
       method: 'DELETE',
     })
 
@@ -608,9 +915,9 @@ const handleDeleteInvoice = async (id) => {
     }
 
     setInvoices((prev) => prev.filter((invoice) => invoice.id !== id))
-    showToastMessage('Invoice deleted successfully', 'success')
+    showToastMessage(t.invoiceDeleted, 'success')
   } catch (err) {
-    showToastMessage(err.message || 'Failed to delete invoice', 'error')
+    showToastMessage(err.message || t.failedDeleteInvoice, 'error')
   } finally {
     setShowConfirm(false)
     setSelectedId(null)
@@ -754,7 +1061,7 @@ const handleDeleteInvoice = async (id) => {
 
   const exportToExcel = (data, filename) => {
     if (!data.length) {
-      showToastMessage('No data available to export', 'error')
+      showToastMessage(t.noDataExport, 'error')
       return
     }
 
@@ -764,7 +1071,7 @@ const handleDeleteInvoice = async (id) => {
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Sheet1')
     XLSX.writeFile(workbook, `${filename}.xlsx`)
 
-    showToastMessage('Excel file exported successfully')
+    showToastMessage(t.excelExported)
   }
 
 const requiredColumns = {
@@ -823,7 +1130,7 @@ if (extension === 'csv') {
   const sheet = workbook.Sheets[sheetName]
   rows = XLSX.utils.sheet_to_json(sheet)
 } else {
-  showToastMessage('Unsupported file format', 'error')
+  showToastMessage(t.unsupportedFormat, 'error')
   return
 }
 
@@ -833,9 +1140,9 @@ setImportRows(rows)
 setImportErrors(errors)
 
 if (errors.length > 0) {
-  showToastMessage('File loaded with validation errors', 'error')
+  showToastMessage(t.fileLoadedErrors, 'error')
 } else {
-  showToastMessage('File loaded successfully')
+  showToastMessage(t.fileLoaded)
 }
   }
 
@@ -848,12 +1155,12 @@ reader.readAsArrayBuffer(file)
 
 const handleImportData = async () => {
   if (!importRows.length) {
-showToastMessage('Please upload a file first', 'error')
+showToastMessage(t.uploadFirst, 'error')
 return
   }
 
   if (importErrors.length > 0) {
-showToastMessage('Fix validation errors before importing', 'error')
+showToastMessage(t.fixImportErrors, 'error')
 return
   }
 
@@ -868,7 +1175,7 @@ const endpoint =
 const createdItems = []
 
 for (const row of importRows) {
-  const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
+  const response = await authFetch(`${API_BASE_URL}/${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(row),
@@ -877,7 +1184,7 @@ for (const row of importRows) {
   const result = await response.json()
 
   if (!response.ok) {
-    throw new Error(result.message || 'Import failed')
+    throw new Error(result.message || t.importFailed)
   }
 
   createdItems.push(result.data || result)
@@ -901,7 +1208,7 @@ if (importType === 'invoices') {
 setImportRows([])
 setImportFileName('')
 setImportErrors([])
-showToastMessage('Data imported successfully')
+showToastMessage(t.dataImported)
   } catch (err) {
 showToastMessage(err.message, 'error')
   }
@@ -910,10 +1217,10 @@ showToastMessage(err.message, 'error')
   const renderTableControls = (type, data, filename) => (
     <div className="transaction-controls">
       <div className="transaction-filter-field search">
-        <label>Search</label>
+        <label>{t.search}</label>
         <input
           type="text"
-          placeholder="Search records..."
+          placeholder={t.searchPlaceholder}
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value)
@@ -924,7 +1231,7 @@ showToastMessage(err.message, 'error')
 
       {type === 'revenues' && (
         <div className="transaction-filter-field">
-          <label>Status</label>
+          <label>{t.status}</label>
           <select
             value={statusFilter}
             onChange={(e) => {
@@ -932,16 +1239,16 @@ showToastMessage(err.message, 'error')
               setCurrentPage(1)
             }}
           >
-            <option value="all">All Status</option>
-            <option value="Pending">Pending</option>
-            <option value="Paid">Paid</option>
-            <option value="Cancelled">Cancelled</option>
+            <option value="all">{t.allStatus}</option>
+<option value="Pending">{t.pending}</option>
+<option value="Paid">{t.paid}</option>
+<option value="Cancelled">{t.cancelled}</option>
           </select>
         </div>
       )}
 
       <div className="transaction-filter-field">
-        <label>From</label>
+        <label>{t.from}</label>
         <input
           type="date"
           value={dateFrom}
@@ -953,7 +1260,7 @@ showToastMessage(err.message, 'error')
       </div>
 
       <div className="transaction-filter-field">
-        <label>To</label>
+        <label>{t.to}</label>
         <input
           type="date"
           value={dateTo}
@@ -965,7 +1272,7 @@ showToastMessage(err.message, 'error')
       </div>
 
       <div className="transaction-filter-field small">
-        <label>Min</label>
+        <label>{t.min}</label>
         <input
           type="number"
           placeholder="0"
@@ -978,10 +1285,10 @@ showToastMessage(err.message, 'error')
       </div>
 
       <div className="transaction-filter-field small">
-        <label>Max</label>
+        <label>{t.max}</label>
         <input
           type="number"
-          placeholder="Any"
+          placeholder={t.any}
           value={maxAmount}
           onChange={(e) => {
             setMaxAmount(e.target.value)
@@ -992,14 +1299,14 @@ showToastMessage(err.message, 'error')
 
       <div className="transaction-control-actions">
         <button className="transaction-secondary-btn" onClick={resetTransactionFilters}>
-          Reset
+          {t.reset}
         </button>
 
         <button
           className="transaction-export-btn"
           onClick={() => exportToExcel(data, filename)}
         >
-          Export Excel
+          {t.exportExcel}
         </button>
       </div>
     </div>
@@ -1015,11 +1322,25 @@ showToastMessage(err.message, 'error')
 
     if (totalPages <= 1) return null
 
+    const getVisiblePages = () => {
+      const pages = new Set([1, totalPages, currentPage - 1, currentPage, currentPage + 1])
+
+      return Array.from(pages)
+        .filter((page) => page >= 1 && page <= totalPages)
+        .sort((a, b) => a - b)
+        .reduce((items, page, index, pagesList) => {
+          if (index > 0 && page - pagesList[index - 1] > 1) items.push('ellipsis-' + page)
+          items.push(page)
+          return items
+        }, [])
+    }
+
+    
     return (
       <div className="transaction-pagination">
         <p>
-          Showing {(currentPage - 1) * rowsPerPage + 1}-
-          {Math.min(currentPage * rowsPerPage, totalItems)} of {totalItems} records
+          {t.visibleRecords}: {(currentPage - 1) * rowsPerPage + 1}-
+          {Math.min(currentPage * rowsPerPage, totalItems)} / {totalItems}
         </p>
 
         <div className="transaction-pages">
@@ -1030,15 +1351,19 @@ showToastMessage(err.message, 'error')
             ‹
           </button>
 
-          {Array.from({ length: totalPages }, (_, index) => (
-            <button
-              key={index + 1}
-              className={currentPage === index + 1 ? 'active' : ''}
-              onClick={() => setCurrentPage(index + 1)}
-            >
-              {index + 1}
-            </button>
-          ))}
+          {getVisiblePages().map((page) =>
+            typeof page === 'string' ? (
+              <span key={page} className="pagination-ellipsis">...</span>
+            ) : (
+              <button
+                key={page}
+                className={currentPage === page ? 'active' : ''}
+                onClick={() => setCurrentPage(page)}
+              >
+                {page}
+              </button>
+            )
+          )}
 
           <button
             disabled={currentPage === totalPages}
@@ -1052,8 +1377,10 @@ showToastMessage(err.message, 'error')
   }
 
   const renderRevenuesTab = () => {
-    if (loadingInvoices) return <LoadingState message="Loading revenue records..." />
-    if (errorInvoices) return <EmptyState title="Revenue loading failed" message={errorInvoices} />
+    if (loadingInvoices) return <LoadingState message={t.loadingRevenue} />
+    if (errorInvoices) return <EmptyState title={t.revenueFailed} message={errorInvoices} />
+    const canEditInvoices = canUpdateResource('invoices', role)
+    const canRemoveInvoices = canDeleteResource('invoices', role)
 
     const filteredInvoices = processData(invoices, 'revenues')
     const paginatedInvoices = getPaginatedData(filteredInvoices)
@@ -1071,8 +1398,8 @@ showToastMessage(err.message, 'error')
       <>
         <div className="table-header">
           <div>
-            <span>All Invoices (Revenue Source)</span>
-            <p>{filteredInvoices.length} visible records from {invoices.length} total invoices</p>
+            <span>{t.allInvoices}</span>
+            <p>{filteredInvoices.length} {t.visibleRecords} {invoices.length} {t.totalInvoicesRecords}</p>
           </div>
         </div>
 
@@ -1081,14 +1408,14 @@ showToastMessage(err.message, 'error')
         <table>
           <thead>
             <tr>
-              <th onClick={() => handleSort('reference')}>Reference {getSortIcon('reference')}</th>
-              <th onClick={() => handleSort('client')}>Client {getSortIcon('client')}</th>
-              <th onClick={() => handleSort('project')}>Project {getSortIcon('project')}</th>
-              <th onClick={() => handleSort('status')}>Status {getSortIcon('status')}</th>
-              <th onClick={() => handleSort('displayDate')}>Issue Date {getSortIcon('displayDate')}</th>
-              <th onClick={() => handleSort('due_date')}>Due Date {getSortIcon('due_date')}</th>
-              <th onClick={() => handleSort('displayAmount')}>Amount {getSortIcon('displayAmount')}</th>
-              <th>Actions</th>
+              <th onClick={() => handleSort('reference')}>{t.reference} {getSortIcon('reference')}</th>
+              <th onClick={() => handleSort('client')}>{t.client} {getSortIcon('client')}</th>
+              <th onClick={() => handleSort('project')}>{t.project} {getSortIcon('project')}</th>
+              <th onClick={() => handleSort('status')}>{t.status} {getSortIcon('status')}</th>
+              <th onClick={() => handleSort('displayDate')}>{t.issueDate} {getSortIcon('displayDate')}</th>
+              <th onClick={() => handleSort('due_date')}>{t.dueDate} {getSortIcon('due_date')}</th>
+              <th onClick={() => handleSort('displayAmount')}>{t.amount} {getSortIcon('displayAmount')}</th>
+              <th>{t.actions}</th>
             </tr>
           </thead>
 
@@ -1108,18 +1435,22 @@ showToastMessage(err.message, 'error')
                   <td>${Number(invoice.amount || 0).toLocaleString()}</td>
                   <td>
                     <div className="transaction-row-actions">
-                      <button className="transaction-action-btn edit" onClick={() => openEditInvoiceModal(invoice)}>
-                        Edit
-                      </button>
-                      <button
-                        className="transaction-action-btn delete"
-                        onClick={() => {
-                          setSelectedId({ id: invoice.id, type: 'invoice' })
-                          setShowConfirm(true)
-                        }}
-                      >
-                        Delete
-                      </button>
+                      {canEditInvoices && (
+                        <button className="transaction-action-btn edit" onClick={() => openEditInvoiceModal(invoice)}>
+                          {t.edit}
+                        </button>
+                      )}
+                      {canRemoveInvoices && (
+                        <button
+                          className="transaction-action-btn delete"
+                          onClick={() => {
+                            setSelectedId({ id: invoice.id, type: 'invoice' })
+                            setShowConfirm(true)
+                          }}
+                        >
+                          {t.delete}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1128,8 +1459,8 @@ showToastMessage(err.message, 'error')
               <tr>
                 <td colSpan="8">
                   <EmptyState
-                    title="No invoices found"
-                    message="No invoice records match your current filters."
+                    title={t.noInvoices}
+                    message={t.noInvoicesMessage}
                   />
                 </td>
               </tr>
@@ -1143,8 +1474,10 @@ showToastMessage(err.message, 'error')
   }
 
   const renderExpensesTab = () => {
-    if (loadingExpenses) return <LoadingState message="Loading expense records..." />
-    if (errorExpenses) return <EmptyState title="Expense loading failed" message={errorExpenses} />
+    if (loadingExpenses) return <LoadingState message={t.loadingExpenses} />
+    if (errorExpenses) return <EmptyState title={t.expenseFailed} message={errorExpenses} />
+    const canEditExpenses = canUpdateResource('expenses', role)
+    const canRemoveExpenses = canDeleteResource('expenses', role)
 
     const filteredExpenses = processData(expenses, 'expenses')
     const paginatedExpenses = getPaginatedData(filteredExpenses)
@@ -1163,8 +1496,8 @@ showToastMessage(err.message, 'error')
       <>
         <div className="table-header">
           <div>
-            <span>All Expenses</span>
-            <p>{filteredExpenses.length} visible records from {expenses.length} total expenses</p>
+            <span>{t.allExpenses}</span>
+            <p>{filteredExpenses.length} {t.visibleRecords} {expenses.length} {t.totalExpensesRecords}</p>
           </div>
         </div>
 
@@ -1173,14 +1506,14 @@ showToastMessage(err.message, 'error')
         <table>
           <thead>
             <tr>
-              <th onClick={() => handleSort('displayDate')}>Date {getSortIcon('displayDate')}</th>
-              <th onClick={() => handleSort('description')}>Description {getSortIcon('description')}</th>
-              <th onClick={() => handleSort('project')}>Project {getSortIcon('project')}</th>
-              <th onClick={() => handleSort('category')}>Category {getSortIcon('category')}</th>
-              <th onClick={() => handleSort('supplier')}>Supplier {getSortIcon('supplier')}</th>
-              <th onClick={() => handleSort('reference')}>Reference {getSortIcon('reference')}</th>
-              <th onClick={() => handleSort('displayAmount')}>Amount {getSortIcon('displayAmount')}</th>
-              <th>Actions</th>
+              <th onClick={() => handleSort('displayDate')}>{t.date} {getSortIcon('displayDate')}</th>
+              <th onClick={() => handleSort('description')}>{t.description} {getSortIcon('description')}</th>
+              <th onClick={() => handleSort('project')}>{t.project} {getSortIcon('project')}</th>
+              <th onClick={() => handleSort('category')}>{t.category} {getSortIcon('category')}</th>
+              <th onClick={() => handleSort('supplier')}>{t.supplier} {getSortIcon('supplier')}</th>
+              <th onClick={() => handleSort('reference')}>{t.reference} {getSortIcon('reference')}</th>
+              <th onClick={() => handleSort('displayAmount')}>{t.amount} {getSortIcon('displayAmount')}</th>
+              <th>{t.actions}</th>
             </tr>
           </thead>
 
@@ -1200,18 +1533,22 @@ showToastMessage(err.message, 'error')
                   <td>${Number(expense.amount || 0).toLocaleString()}</td>
                   <td>
                     <div className="transaction-row-actions">
-                      <button className="transaction-action-btn edit" onClick={() => openEditExpenseModal(expense)}>
-                        Edit
-                      </button>
-                      <button
-                        className="transaction-action-btn delete"
-                        onClick={() => {
-                          setSelectedId({ id: expense.id, type: 'expense' })
-                          setShowConfirm(true)
-                        }}
-                      >
-                        Delete
-                      </button>
+                      {canEditExpenses && (
+                        <button className="transaction-action-btn edit" onClick={() => openEditExpenseModal(expense)}>
+                          {t.edit}
+                        </button>
+                      )}
+                      {canRemoveExpenses && (
+                        <button
+                          className="transaction-action-btn delete"
+                          onClick={() => {
+                            setSelectedId({ id: expense.id, type: 'expense' })
+                            setShowConfirm(true)
+                          }}
+                        >
+                          {t.delete}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1220,8 +1557,8 @@ showToastMessage(err.message, 'error')
               <tr>
                 <td colSpan="8">
                   <EmptyState
-                    title="No expenses found"
-                    message="No expense records match your current filters."
+                    title={t.noExpenses}
+                    message={t.noExpensesMessage}
                   />
                 </td>
               </tr>
@@ -1235,8 +1572,10 @@ showToastMessage(err.message, 'error')
   }
 
   const renderSalariesTab = () => {
-    if (loadingSalaries) return <LoadingState message="Loading salary records..." />
-    if (errorSalaries) return <EmptyState title="Salary loading failed" message={errorSalaries} />
+    if (loadingSalaries) return <LoadingState message={t.loadingSalaries} />
+    if (errorSalaries) return <EmptyState title={t.salaryFailed} message={errorSalaries} />
+    const canEditSalaries = canUpdateResource('salaries', role)
+    const canRemoveSalaries = canDeleteResource('salaries', role)
 
     const filteredSalaries = processData(salaries, 'salaries')
     const paginatedSalaries = getPaginatedData(filteredSalaries)
@@ -1253,8 +1592,8 @@ showToastMessage(err.message, 'error')
       <>
         <div className="table-header">
           <div>
-            <span>All Salaries</span>
-            <p>{filteredSalaries.length} visible records from {salaries.length} total salaries</p>
+            <span>{t.allSalaries}</span>
+            <p>{filteredSalaries.length} {t.visibleRecords} {salaries.length} {t.totalSalariesRecords}</p>
           </div>
         </div>
 
@@ -1263,12 +1602,12 @@ showToastMessage(err.message, 'error')
         <table>
           <thead>
             <tr>
-              <th onClick={() => handleSort('month')}>Month {getSortIcon('month')}</th>
-              <th onClick={() => handleSort('year')}>Year {getSortIcon('year')}</th>
-              <th onClick={() => handleSort('displayAmount')}>Amount Paid {getSortIcon('displayAmount')}</th>
-              <th onClick={() => handleSort('displayDate')}>Payment Date {getSortIcon('displayDate')}</th>
-              <th onClick={() => handleSort('EmployeeId')}>Employee ID {getSortIcon('EmployeeId')}</th>
-              <th>Actions</th>
+              <th onClick={() => handleSort('month')}>{t.month} {getSortIcon('month')}</th>
+              <th onClick={() => handleSort('year')}>{t.year} {getSortIcon('year')}</th>
+              <th onClick={() => handleSort('displayAmount')}>{t.amountPaid} {getSortIcon('displayAmount')}</th>
+              <th onClick={() => handleSort('displayDate')}>{t.paymentDate} {getSortIcon('displayDate')}</th>
+              <th onClick={() => handleSort('EmployeeId')}>{t.employeeId} {getSortIcon('EmployeeId')}</th>
+              <th>{t.actions}</th>
             </tr>
           </thead>
 
@@ -1286,18 +1625,22 @@ showToastMessage(err.message, 'error')
                   <td>{salary.EmployeeId || '-'}</td>
                   <td>
                     <div className="transaction-row-actions">
-                      <button className="transaction-action-btn edit" onClick={() => openEditSalaryModal(salary)}>
-                        Edit
-                      </button>
-                      <button
-                        className="transaction-action-btn delete"
-                        onClick={() => {
-                          setSelectedId({ id: salary.id, type: 'salary' })
-                          setShowConfirm(true)
-                        }}
-                      >
-                        Delete
-                      </button>
+                      {canEditSalaries && (
+                        <button className="transaction-action-btn edit" onClick={() => openEditSalaryModal(salary)}>
+                          {t.edit}
+                        </button>
+                      )}
+                      {canRemoveSalaries && (
+                        <button
+                          className="transaction-action-btn delete"
+                          onClick={() => {
+                            setSelectedId({ id: salary.id, type: 'salary' })
+                            setShowConfirm(true)
+                          }}
+                        >
+                          {t.delete}
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -1306,8 +1649,8 @@ showToastMessage(err.message, 'error')
               <tr>
                 <td colSpan="6">
                   <EmptyState
-                    title="No salaries found"
-                    message="No salary records match your current filters."
+                    title={t.noSalaries}
+                    message={t.noSalariesMessage}
                   />
                 </td>
               </tr>
@@ -1335,15 +1678,15 @@ const renderImportTab = () => (
   <div className="import-panel">
     <div className="import-header">
       <div>
-        <h3>Import Financial Data</h3>
-        <p>Upload CSV or Excel files to insert invoices, expenses or salaries.</p>
+        <h3>{t.importFinancialData}</h3>
+        <p>{t.uploadMessage}</p>
       </div>
       <span className="import-badge">CSV / Excel</span>
     </div>
 
     <div className="import-controls">
       <div className="import-field">
-        <label>Dataset Type</label>
+        <label>{t.datasetType}</label>
         <select
           value={importType}
           onChange={(e) => {
@@ -1353,29 +1696,29 @@ const renderImportTab = () => (
             setImportFileName('')
           }}
         >
-          <option value="invoices">Invoices</option>
-          <option value="expenses">Expenses</option>
-          <option value="salaries">Salaries</option>
+          <option value="invoices">{t.invoice}</option>
+          <option value="expenses">{t.expense}</option>
+          <option value="salaries">{t.salary}</option>
         </select>
       </div>
 
       <div className="import-field">
-        <label>Upload File</label>
+        <label>{t.uploadFile}</label>
         <input type="file" accept=".csv,.xlsx,.xls" onChange={handleImportFile} />
       </div>
 
       <button className="import-btn" onClick={handleImportData}>
-        Import Data
+        {t.importData}
       </button>
     </div>
 
     <div className="import-requirements">
-      <strong>Required columns:</strong>{' '}
+      <strong>{t.requiredColumnsText}:</strong>{' '}
       {requiredColumns[importType].join(', ')}
     </div>
 
     {importFileName && (
-      <p className="import-file-name">Selected file: {importFileName}</p>
+      <p className="import-file-name">{t.selectedFile}: {importFileName}</p>
     )}
 
     {importErrors.length > 0 && (
@@ -1388,7 +1731,7 @@ const renderImportTab = () => (
 
     {importRows.length > 0 && (
       <div className="import-preview">
-        <h4>Preview</h4>
+        <h4>{t.preview}</h4>
         <table>
           <thead>
             <tr>
@@ -1416,87 +1759,88 @@ const renderImportTab = () => (
   const getMainKpi = () => {
     if (activeTab === 'revenues') {
       return {
-        title: 'Total Revenue',
+        title: t.totalRevenue,
         value: `$${totalRevenue.toLocaleString()}`,
-        subtitle: `${invoices.length} invoice records loaded`,
-        source: 'Real data loaded from /api/invoices',
+        subtitle: `${invoices.length} ${t.invoiceRecords} loaded`,
+        source: t.sourceInvoices,
       }
     }
 
     if (activeTab === 'expenses') {
       return {
-        title: 'Total Expenses',
+        title: t.totalExpenses,
         value: `$${totalExpenses.toLocaleString()}`,
-        subtitle: `${expenses.length} expense records loaded`,
-        source: 'Real data loaded from /api/expenses',
+        subtitle: `${expenses.length} ${t.expenseRecords} loaded`,
+        source: t.sourceExpenses,
       }
     }
 
     if (activeTab === 'salaries') {
       return {
-        title: 'Total Salaries',
+        title: t.totalSalaries,
         value: `$${totalSalaries.toLocaleString()}`,
-        subtitle: `${salaries.length} salary records loaded`,
-        source: 'Real data loaded from /api/salaries',
+        subtitle: `${salaries.length} ${t.salaryRecords} loaded`,
+        source: t.sourceSalaries,
       }
     }
 
     return {
-      title: 'Import Workspace',
-      value: importRows.length ? `${importRows.length} rows` : 'Ready',
-      subtitle: importFileName || 'Upload CSV or Excel data for invoices, expenses or salaries',
-      source: 'Local preview with backend insert after validation',
+      title: t.importWorkspace,
+      value: importRows.length ? `${importRows.length} ${t.rows}` : t.ready,
+      subtitle: importFileName || t.importHelp,
+      source: t.sourceImport,
     }
   }
 
   const kpi = getMainKpi()
+  const activeResource =
+    activeTab === 'revenues'
+      ? 'invoices'
+      : activeTab === 'expenses'
+      ? 'expenses'
+      : activeTab === 'salaries'
+      ? 'salaries'
+      : null
+  const canCreateActive = activeResource ? canCreateResource(activeResource, role) : true
+  const visibleTabs = [
+    canViewInvoices && { id: 'revenues', label: t.revenues },
+    canViewExpenses && { id: 'expenses', label: t.expenses },
+    canViewSalaries && { id: 'salaries', label: t.salaries },
+    { id: 'import', label: t.importData },
+  ].filter(Boolean)
   const transactionSubtitle =
   activeTab === 'revenues'
-    ? 'Manage invoice-based revenue records'
+    ? t.revenuesSubtitle
     : activeTab === 'expenses'
-    ? 'Manage operational expense records'
+    ? t.expensesSubtitle
     : activeTab === 'salaries'
-    ? 'Manage employee salary records'
-    : 'Import and prepare financial data'
+    ? t.salariesSubtitle
+    : t.importSubtitle
+
+
+
+
 
   return (
     <div className="transactions-page">
       <PageHeader
-  title="Financial Transactions"
+  title={t.pageTitle}
   subtitle={transactionSubtitle}
 />
       <div className="transactions-top">
         <div className="tabs">
-          <button
-            className={activeTab === 'revenues' ? 'tab active' : 'tab'}
-            onClick={() => handleTabChange('revenues')}
-          >
-            Revenues
-          </button>
-
-          <button
-            className={activeTab === 'expenses' ? 'tab active' : 'tab'}
-            onClick={() => handleTabChange('expenses')}
-          >
-            Expenses
-          </button>
-
-          <button
-            className={activeTab === 'salaries' ? 'tab active' : 'tab'}
-            onClick={() => handleTabChange('salaries')}
-          >
-            Salaries
-          </button>
-
-          <button
-            className={activeTab === 'import' ? 'tab active' : 'tab'}
-            onClick={() => handleTabChange('import')}
-          >
-            Import Data
-          </button>
+          {visibleTabs.map((tab) => (
+            <button
+              key={tab.id}
+              className={activeTab === tab.id ? 'tab active' : 'tab'}
+              onClick={() => handleTabChange(tab.id)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
-        {activeTab !== 'import' && (
+        {activeTab !== 'import' && canCreateActive && (
           <button
             className="add-btn"
             onClick={() => {
@@ -1516,11 +1860,11 @@ const renderImportTab = () => (
               }
             }}
           >
-            + Add New {activeTab === 'revenues'
-              ? 'Invoice'
+            {t.addNew} {activeTab === 'revenues'
+              ? t.invoice
               : activeTab === 'expenses'
-              ? 'Expense'
-              : 'Salary'}
+              ? t.expense
+              : t.salary}
           </button>
         )}
       </div>
@@ -1533,8 +1877,8 @@ const renderImportTab = () => (
         </div>
 
         <div className="kpi-alert">
-          <p>Sync Status</p>
-          <h3>Connected</h3>
+          <p>{t.syncStatus}</p>
+          <h3>{t.connected}</h3>
           <span>{kpi.source}</span>
         </div>
       </div>
@@ -1553,32 +1897,32 @@ const renderImportTab = () => (
 
       <div className="bottom-grid">
         <div className="distribution">
-          <h3>Records Loaded</h3>
+          <h3>{t.recordsLoaded}</h3>
           <p>
-            Revenues: {invoices.length} | Expenses: {expenses.length} | Salaries: {salaries.length}
+            {t.revenues}: {invoices.length} | {t.expenses}: {expenses.length} | {t.salaries}: {salaries.length}
           </p>
         </div>
 
         <div className="market">
-          <h3>Backend Sources</h3>
-          <p>/api/invoices, /api/expenses and /api/salaries connected successfully</p>
+          <h3>{t.backendSources}</h3>
+          <p>{t.backendConnectedText}</p>
         </div>
       </div>
 
       {showInvoiceModal && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Add Invoice</h3>
+            <h3>{t.addInvoice}</h3>
 
             <input
-              placeholder="Reference"
+              placeholder={t.reference}
               value={newInvoice.reference}
               onChange={(e) => setNewInvoice({ ...newInvoice, reference: e.target.value })}
             />
 
             <input
               type="number"
-              placeholder="Amount"
+              placeholder={t.amount}
               value={newInvoice.amount}
               onChange={(e) => setNewInvoice({ ...newInvoice, amount: e.target.value })}
             />
@@ -1587,9 +1931,9 @@ const renderImportTab = () => (
               value={newInvoice.status}
               onChange={(e) => setNewInvoice({ ...newInvoice, status: e.target.value })}
             >
-              <option value="Pending">Pending</option>
-              <option value="Paid">Paid</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="Pending">{t.pending}</option>
+              <option value="Paid">{t.paid}</option>
+              <option value="Cancelled">{t.cancelled}</option>
             </select>
 
             <input
@@ -1608,7 +1952,7 @@ const renderImportTab = () => (
               value={newInvoice.ClientId}
               onChange={(e) => setNewInvoice({ ...newInvoice, ClientId: e.target.value })}
             >
-              <option value="">Select Client</option>
+              <option value="">{t.selectClient}</option>
               {clients.map((client) => (
                 <option key={client.id} value={client.id}>
                   {client.name}
@@ -1620,7 +1964,7 @@ const renderImportTab = () => (
               value={newInvoice.ProjectId}
               onChange={(e) => setNewInvoice({ ...newInvoice, ProjectId: e.target.value })}
             >
-              <option value="">Select Project</option>
+              <option value="">{t.selectProject}</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
@@ -1629,8 +1973,8 @@ const renderImportTab = () => (
             </select>
 
             <div className="modal-actions">
-              <button onClick={handleCreateInvoice}>Create</button>
-              <button onClick={() => setShowInvoiceModal(false)}>Cancel</button>
+              <button onClick={handleCreateInvoice}>{t.create}</button>
+              <button onClick={() => setShowInvoiceModal(false)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -1639,13 +1983,13 @@ const renderImportTab = () => (
       {showSalaryModal && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Add Salary</h3>
+            <h3>{t.addSalary}</h3>
 
             <select
               value={newSalary.month}
               onChange={(e) => setNewSalary({ ...newSalary, month: e.target.value })}
             >
-              <option value="">Select Month</option>
+              <option value="">{t.selectMonth}</option>
               {[
                 'January', 'February', 'March', 'April', 'May', 'June',
                 'July', 'August', 'September', 'October', 'November', 'December',
@@ -1656,14 +2000,14 @@ const renderImportTab = () => (
 
             <input
               type="number"
-              placeholder="Year"
+              placeholder={t.year}
               value={newSalary.year}
               onChange={(e) => setNewSalary({ ...newSalary, year: e.target.value })}
             />
 
             <input
               type="number"
-              placeholder="Amount Paid"
+              placeholder={t.amountPaid}
               value={newSalary.amount_paid}
               onChange={(e) => setNewSalary({ ...newSalary, amount_paid: e.target.value })}
             />
@@ -1678,7 +2022,7 @@ const renderImportTab = () => (
               value={newSalary.EmployeeId}
               onChange={(e) => setNewSalary({ ...newSalary, EmployeeId: e.target.value })}
             >
-              <option value="">Select Employee</option>
+              <option value="">{t.selectEmployee}</option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   {emp.first_name} {emp.last_name}
@@ -1687,8 +2031,8 @@ const renderImportTab = () => (
             </select>
 
             <div className="modal-actions">
-              <button onClick={handleCreateSalary}>Create</button>
-              <button onClick={() => setShowSalaryModal(false)}>Cancel</button>
+              <button onClick={handleCreateSalary}>{t.create}</button>
+              <button onClick={() => setShowSalaryModal(false)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -1697,11 +2041,11 @@ const renderImportTab = () => (
       {showExpenseModal && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Add New Expense</h3>
+            <h3>{t.addExpense}</h3>
 
             <input
               type="number"
-              placeholder="Amount"
+              placeholder={t.amount}
               value={newExpense.amount}
               onChange={(e) => setNewExpense({ ...newExpense, amount: e.target.value })}
             />
@@ -1713,13 +2057,13 @@ const renderImportTab = () => (
             />
 
             <input
-              placeholder="Description"
+              placeholder={t.description}
               value={newExpense.description}
               onChange={(e) => setNewExpense({ ...newExpense, description: e.target.value })}
             />
 
             <input
-              placeholder="Reference"
+              placeholder={t.reference}
               value={newExpense.reference}
               onChange={(e) => setNewExpense({ ...newExpense, reference: e.target.value })}
             />
@@ -1728,7 +2072,7 @@ const renderImportTab = () => (
               value={newExpense.ProjectId}
               onChange={(e) => setNewExpense({ ...newExpense, ProjectId: e.target.value })}
             >
-              <option value="">Select Project</option>
+              <option value="">{t.selectProject}</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
@@ -1740,7 +2084,7 @@ const renderImportTab = () => (
               value={newExpense.CategoryId}
               onChange={(e) => setNewExpense({ ...newExpense, CategoryId: e.target.value })}
             >
-              <option value="">Select Category</option>
+              <option value="">{t.selectCategory}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -1752,7 +2096,7 @@ const renderImportTab = () => (
               value={newExpense.FournisseurId}
               onChange={(e) => setNewExpense({ ...newExpense, FournisseurId: e.target.value })}
             >
-              <option value="">Select Supplier (optional)</option>
+              <option value="">{t.selectSupplier}</option>
               {fournisseurs.map((fournisseur) => (
                 <option key={fournisseur.id} value={fournisseur.id}>
                   {fournisseur.name}
@@ -1761,8 +2105,8 @@ const renderImportTab = () => (
             </select>
 
             <div className="modal-actions">
-              <button onClick={handleCreateExpense}>Create</button>
-              <button onClick={() => setShowExpenseModal(false)}>Cancel</button>
+              <button onClick={handleCreateExpense}>{t.create}</button>
+              <button onClick={() => setShowExpenseModal(false)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -1771,11 +2115,11 @@ const renderImportTab = () => (
       {editingExpense && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Edit Expense</h3>
+            <h3>{t.editExpense}</h3>
 
             <input
               type="number"
-              placeholder="Amount"
+              placeholder={t.amount}
               value={editExpenseData.amount}
               onChange={(e) => setEditExpenseData({ ...editExpenseData, amount: e.target.value })}
             />
@@ -1787,13 +2131,13 @@ const renderImportTab = () => (
             />
 
             <input
-              placeholder="Description"
+              placeholder={t.description}
               value={editExpenseData.description}
               onChange={(e) => setEditExpenseData({ ...editExpenseData, description: e.target.value })}
             />
 
             <input
-              placeholder="Reference"
+              placeholder={t.reference}
               value={editExpenseData.reference}
               onChange={(e) => setEditExpenseData({ ...editExpenseData, reference: e.target.value })}
             />
@@ -1802,7 +2146,7 @@ const renderImportTab = () => (
               value={editExpenseData.ProjectId}
               onChange={(e) => setEditExpenseData({ ...editExpenseData, ProjectId: e.target.value })}
             >
-              <option value="">Select Project</option>
+              <option value="">{t.selectProject}</option>
               {projects.map((project) => (
                 <option key={project.id} value={project.id}>
                   {project.name}
@@ -1814,7 +2158,7 @@ const renderImportTab = () => (
               value={editExpenseData.CategoryId}
               onChange={(e) => setEditExpenseData({ ...editExpenseData, CategoryId: e.target.value })}
             >
-              <option value="">Select Category</option>
+              <option value="">{t.selectCategory}</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -1826,7 +2170,7 @@ const renderImportTab = () => (
               value={editExpenseData.FournisseurId}
               onChange={(e) => setEditExpenseData({ ...editExpenseData, FournisseurId: e.target.value })}
             >
-              <option value="">Select Supplier (optional)</option>
+              <option value="">{t.selectSupplier}</option>
               {fournisseurs.map((fournisseur) => (
                 <option key={fournisseur.id} value={fournisseur.id}>
                   {fournisseur.name}
@@ -1835,8 +2179,8 @@ const renderImportTab = () => (
             </select>
 
             <div className="modal-actions">
-              <button onClick={handleUpdateExpense}>Save</button>
-              <button onClick={() => setEditingExpense(null)}>Cancel</button>
+              <button onClick={handleUpdateExpense}>{t.save}</button>
+              <button onClick={() => setEditingExpense(null)}>{t.cancel}</button>
             </div>
           </div>
         </div>
@@ -1845,17 +2189,17 @@ const renderImportTab = () => (
 {editingInvoice && (
   <div className="modal-overlay">
     <div className="modal">
-      <h3>Edit Invoice</h3>
+      <h3>{t.editInvoice}</h3>
 
       <input
-        placeholder="Reference"
+        placeholder={t.reference}
         value={editInvoiceData.reference}
         onChange={(e) => setEditInvoiceData({ ...editInvoiceData, reference: e.target.value })}
       />
 
       <input
         type="number"
-        placeholder="Amount"
+        placeholder={t.amount}
         value={editInvoiceData.amount}
         onChange={(e) => setEditInvoiceData({ ...editInvoiceData, amount: e.target.value })}
       />
@@ -1864,9 +2208,9 @@ const renderImportTab = () => (
         value={editInvoiceData.status}
         onChange={(e) => setEditInvoiceData({ ...editInvoiceData, status: e.target.value })}
       >
-        <option value="Pending">Pending</option>
-        <option value="Paid">Paid</option>
-        <option value="Cancelled">Cancelled</option>
+        <option value="Pending">{t.pending}</option>
+        <option value="Paid">{t.paid}</option>
+        <option value="Cancelled">{t.cancelled}</option>
       </select>
 
       <input
@@ -1885,7 +2229,7 @@ const renderImportTab = () => (
         value={editInvoiceData.ClientId}
         onChange={(e) => setEditInvoiceData({ ...editInvoiceData, ClientId: e.target.value })}
       >
-        <option value="">Select Client</option>
+        <option value="">{t.selectClient}</option>
         {clients.map((client) => (
           <option key={client.id} value={client.id}>
             {client.name}
@@ -1897,7 +2241,7 @@ const renderImportTab = () => (
         value={editInvoiceData.ProjectId}
         onChange={(e) => setEditInvoiceData({ ...editInvoiceData, ProjectId: e.target.value })}
       >
-        <option value="">Select Project</option>
+        <option value="">{t.selectProject}</option>
         {projects.map((project) => (
           <option key={project.id} value={project.id}>
             {project.name}
@@ -1906,8 +2250,8 @@ const renderImportTab = () => (
       </select>
 
       <div className="modal-actions">
-        <button onClick={handleUpdateInvoice}>Save</button>
-        <button onClick={() => setEditingInvoice(null)}>Cancel</button>
+        <button onClick={handleUpdateInvoice}>{t.save}</button>
+        <button onClick={() => setEditingInvoice(null)}>{t.cancel}</button>
       </div>
     </div>
   </div>
@@ -1915,13 +2259,13 @@ const renderImportTab = () => (
       {editingSalary && (
         <div className="modal-overlay">
           <div className="modal">
-            <h3>Edit Salary</h3>
+            <h3>{t.editSalary}</h3>
 
             <select
               value={editSalaryData.month}
               onChange={(e) => setEditSalaryData({ ...editSalaryData, month: e.target.value })}
             >
-              <option value="">Select Month</option>
+              <option value="">{t.selectMonth}</option>
               {[
                 'January', 'February', 'March', 'April', 'May', 'June',
                 'July', 'August', 'September', 'October', 'November', 'December',
@@ -1932,14 +2276,14 @@ const renderImportTab = () => (
 
             <input
               type="number"
-              placeholder="Year"
+              placeholder={t.year}
               value={editSalaryData.year}
               onChange={(e) => setEditSalaryData({ ...editSalaryData, year: e.target.value })}
             />
 
             <input
               type="number"
-              placeholder="Amount Paid"
+              placeholder={t.amountPaid}
               value={editSalaryData.amount_paid}
               onChange={(e) => setEditSalaryData({ ...editSalaryData, amount_paid: e.target.value })}
             />
@@ -1954,7 +2298,7 @@ const renderImportTab = () => (
               value={editSalaryData.EmployeeId}
               onChange={(e) => setEditSalaryData({ ...editSalaryData, EmployeeId: e.target.value })}
             >
-              <option value="">Select Employee</option>
+              <option value="">{t.selectEmployee}</option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
                   {emp.first_name} {emp.last_name}
@@ -1963,16 +2307,16 @@ const renderImportTab = () => (
             </select>
 
             <div className="modal-actions">
-              <button onClick={handleUpdateSalary}>Save</button>
-              <button onClick={() => setEditingSalary(null)}>Cancel</button>
+              <button onClick={handleUpdateSalary}>{t.save}</button>
+              <button onClick={() => setEditingSalary(null)}>{t.cancel}</button>
             </div>
           </div>
         </div>
       )}
       {showConfirm && selectedId && (
   <ConfirmModal
-    title={`Delete ${selectedId.type.charAt(0).toUpperCase() + selectedId.type.slice(1)}`}
-    message={`Are you sure you want to delete this ${selectedId.type}? This action cannot be undone.`}
+    title={`${t.deleteConfirmTitle} ${selectedId.type}`}
+    message={`${t.deleteConfirmMessageStart} ${selectedId.type}. ${t.deleteConfirmMessageEnd}`}
     onConfirm={handleConfirmDelete}
     onCancel={() => {
       setShowConfirm(false)

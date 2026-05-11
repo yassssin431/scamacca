@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
+const rateLimit = require("express-rate-limit");
 require("dotenv").config();
+
 
 // Import sequelize and models
 const { sequelize, Role } = require("./models");
@@ -15,6 +17,11 @@ const categoryRoutes = require("./routes/category.routes");
 const expenseRoutes = require("./routes/expense.routes");
 const employeeRoutes = require("./routes/employee.routes");
 const etlRoutes = require("./routes/etl.routes");
+const activityRoutes = require("./routes/activity.routes");
+const aiRoutes = require("./routes/ai.routes");
+const dashboardRoutes = require("./routes/dashboard.routes");
+require("./scheduler/ai.scheduler");
+
 
 const budgetRoutes = require("./routes/budget.routes");
 const devisRoutes = require("./routes/devis.routes");
@@ -31,11 +38,31 @@ const { verifyToken } = require("./middleware/auth.middleware");
 const { authorizeRoles } = require("./middleware/role.middleware");
 
 const app = express();
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 200, // max 200 requests per IP
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      message: "Too many requests, please try again later",
+    });
+  },
+});
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // only 5 login attempts
+  handler: (req, res) => {
+    res.status(429).json({
+      success: false,
+      message: "Too many login attempts, try again later",
+    });
+  },
+});
 
 /* ================= MIDDLEWARE ================= */
 app.use(cors());
 app.use(express.json());
-app.use(errorHandler);
+app.use(globalLimiter);
 
 /* ================= ROUTES ================= */
 
@@ -45,6 +72,7 @@ app.get("/", (req, res) => {
 });
 
 // Authentication routes
+app.use("/api/auth/login", loginLimiter);
 app.use("/api/auth", authRoutes);
 
 // Client CRUD routes
@@ -60,8 +88,14 @@ app.use("/api/devis", devisRoutes);
 app.use("/api/fournisseurs", fournisseurRoutes);
 app.use("/api/salaries", salaryRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 app.use("/api/etl", etlRoutes);
+app.use("/api/activity", activityRoutes);
+app.use("/api/ai", aiRoutes);
+
+app.use(errorHandler);
+
 
 // Example protected route for Admin only
 app.get(

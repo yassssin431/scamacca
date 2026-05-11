@@ -499,3 +499,124 @@
     grid-template-columns: 1fr;
   }
 }
+.dashboard-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quick-actions {
+  background: white;
+  padding: 16px;
+  border-radius: 14px;
+  box-shadow: 0 4px 20px rgba(25, 28, 30, 0.05);
+  width: fit-content;
+}
+
+.primary-action,
+.secondary-action {
+  border-radius: 12px;
+  padding: 13px 18px;
+  font-weight: 800;
+  transition: all 0.2s ease;
+}
+
+.primary-action:hover,
+.secondary-action:hover {
+  transform: translateY(-1px);
+}
+
+.kpi-card {
+  transition: all 0.2s ease;
+}
+
+.kpi-card:hover,
+.chart-card:hover,
+.alerts-card:hover,
+.profit-card:hover,
+.shortcut-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(25, 28, 30, 0.08);
+}
+
+.alerts-card {
+  border-top: 4px solid #041627;
+}
+
+.link-button {
+  background: #041627;
+  color: white;
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 24px;
+}
+
+.link-button:hover {
+  background: #1a2b3c;
+}
+
+body.dark-mode .dashboard-heading h2,
+body.dark-mode .section-header h4,
+body.dark-mode .profit-card h4,
+body.dark-mode .shortcuts-section h4,
+body.dark-mode .alerts-card h4,
+body.dark-mode .shortcut-card h5 {
+  color: #f8fafc;
+}
+
+body.dark-mode .dashboard-heading p,
+body.dark-mode .section-header p,
+body.dark-mode .shortcut-card p,
+body.dark-mode .alert-item p,
+body.dark-mode .legend,
+body.dark-mode .profit-header,
+body.dark-mode .bar-group span {
+  color: #9fb0c5;
+}
+
+body.dark-mode .quick-actions,
+body.dark-mode .kpi-card,
+body.dark-mode .chart-card,
+body.dark-mode .alerts-card,
+body.dark-mode .profit-card,
+body.dark-mode .shortcut-card {
+  background: #0b1724;
+  border: 1px solid #203245;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.22);
+}
+
+body.dark-mode .secondary-action {
+  background: #101f2e;
+  border-color: #203245;
+  color: #f8fafc;
+}
+
+body.dark-mode .kpi-card h3,
+body.dark-mode .dashboard-stat-box strong,
+body.dark-mode .alert-item strong {
+  color: #f8fafc;
+}
+
+body.dark-mode .kpi-card p,
+body.dark-mode .dashboard-stat-box span {
+  color: #9fb0c5;
+}
+
+body.dark-mode .kpi-card.dark-card {
+  background: linear-gradient(135deg, #041627 0%, #132f43 100%);
+  border-color: rgba(146, 243, 197, 0.2);
+}
+
+body.dark-mode .dashboard-stat-box,
+body.dark-mode .alert-item {
+  background: #101f2e;
+}
+
+body.dark-mode .alert-item.danger {
+  background: rgba(127, 29, 29, 0.22);
+}
+
+body.dark-mode .profit-bar,
+body.dark-mode .mini-progress {
+  background: #203245;
+}

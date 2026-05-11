@@ -1,8 +1,11 @@
+const bcrypt = require("bcryptjs");
 const { faker } = require("@faker-js/faker");
 faker.seed(456);
 
 const {
   sequelize,
+  Role,
+  User,
   Client,
   Project,
   Invoice,
@@ -11,7 +14,128 @@ const {
   Category,
   Fournisseur,
   Salary,
+  Budget,
+  Devis,
 } = require("../models");
+
+const quoteStatuses = ["Pending", "Sent", "Accepted", "Rejected", "Expired"];
+
+const defaultRoles = [
+  { id: 1, name: "Admin", description: "Full system administration" },
+  { id: 2, name: "Manager", description: "Dashboards, commercial cycle and analysis" },
+  { id: 3, name: "Finance", description: "Financial operations, budgets, expenses and salaries" }
+];
+
+const defaultUsers = [
+  {
+    username: "admin",
+    email: "admin@test.com",
+    password: "123456",
+    RoleId: 1
+  },
+  {
+    username: "manager_test",
+    email: "manager@test.com",
+    password: "123456",
+    RoleId: 2
+  },
+  {
+    username: "finance_test",
+    email: "finance@test.com",
+    password: "123456",
+    RoleId: 3
+  }
+];
+
+const defaultCategories = [
+  { name: "Office Supplies", description: "Office materials and tools" },
+  { name: "Software", description: "Software licenses and SaaS" },
+  { name: "Marketing", description: "Advertising and marketing costs" },
+  { name: "Travel", description: "Business travel expenses" },
+  { name: "Equipment", description: "Hardware and office equipment" },
+  { name: "Consulting", description: "External consultants" },
+  { name: "Utilities", description: "Electricity, internet, water" },
+  { name: "Training", description: "Employee training programs" },
+  { name: "Rent", description: "Office or building rental costs" },
+  { name: "Telecommunications", description: "Phone and communication services" },
+  { name: "Licenses", description: "Business and professional licenses" }
+];
+
+function addDays(date, days) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+}
+
+function roundMoney(value) {
+  return Math.round(Number(value || 0) * 100) / 100;
+}
+
+async function resetDatabase(){
+
+  console.log("Resetting database from current Sequelize models...");
+
+  await sequelize.sync({ force: true });
+
+  console.log("Database reset completed");
+}
+
+async function seedRoles(){
+
+  console.log("Seeding roles...");
+
+  for (const role of defaultRoles) {
+    await Role.findOrCreate({
+      where: { id: role.id },
+      defaults: role
+    });
+  }
+
+  console.log(`${defaultRoles.length} roles checked/created`);
+}
+
+async function seedDefaultUsers(){
+
+  console.log("Seeding default users...");
+
+  for (const user of defaultUsers) {
+    const hashedPassword = await bcrypt.hash(user.password, 10);
+
+    await User.findOrCreate({
+      where: { email: user.email },
+      defaults: {
+        username: user.username,
+        email: user.email,
+        password: hashedPassword,
+        RoleId: user.RoleId,
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
+  }
+
+  console.log(`${defaultUsers.length} default users checked/created`);
+}
+
+async function seedCategories(){
+
+  console.log("Seeding categories...");
+
+  for (const category of defaultCategories) {
+    await Category.findOrCreate({
+      where: { name: category.name },
+      defaults: {
+        ...category,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }
+    });
+  }
+
+  console.log(`${defaultCategories.length} categories checked/created`);
+}
+
 async function generateClients() {
 
   console.log("Generating clients...");
@@ -340,14 +464,228 @@ async function generateFournisseurs(){
 
 }
 
+async function generateBudgets(){
+
+  console.log("Generating project budgets...");
+
+  const projects = await Project.findAll();
+  const existingBudgets = await Budget.findAll({
+    attributes: ["ProjectId"],
+    raw: true
+  });
+  const expenseTotals = await Expense.findAll({
+    attributes: [
+      "ProjectId",
+      [sequelize.fn("SUM", sequelize.col("amount")), "totalExpenses"]
+    ],
+    group: ["ProjectId"],
+    raw: true
+  });
+
+  const alreadyBudgetedProjectIds = new Set(
+    existingBudgets.map((budget) => budget.ProjectId)
+  );
+  const expenseTotalByProjectId = new Map(
+    expenseTotals.map((expense) => [
+      expense.ProjectId,
+      Number(expense.totalExpenses || 0)
+    ])
+  );
+
+  const budgets = projects
+    .filter((project) => !alreadyBudgetedProjectIds.has(project.id))
+    .map((project) => {
+      const projectValue = Number(project.total_value || 0);
+      const totalExpenses = expenseTotalByProjectId.get(project.id) || 0;
+      const baselineBudget = Math.max(
+        projectValue * faker.number.float({ min: 0.55, max: 0.8 }),
+        totalExpenses * faker.number.float({ min: 1.08, max: 1.28 }),
+        3000
+      );
+
+      return {
+        amount: roundMoney(baselineBudget),
+        start_date: project.start_date || faker.date.past(),
+        end_date: project.end_date || faker.date.future(),
+        description: `Operational budget for ${project.name}`,
+        ProjectId: project.id,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    });
+
+  if (!budgets.length) {
+    console.log("No new budgets needed");
+    return;
+  }
+
+  await Budget.bulkCreate(budgets);
+
+  console.log(`${budgets.length} project budgets generated`);
+}
+
+async function generateDevis(){
+
+  console.log("Generating commercial quotes...");
+
+  const projects = await Project.findAll();
+  const budgets = await Budget.findAll({
+    attributes: ["ProjectId", "amount"],
+    raw: true
+  });
+  const existingDevis = await Devis.findAll({
+    attributes: ["ProjectId"],
+    raw: true
+  });
+
+  const budgetByProjectId = new Map(
+    budgets.map((budget) => [
+      budget.ProjectId,
+      Number(budget.amount || 0)
+    ])
+  );
+  const quotedProjectIds = new Set(
+    existingDevis.map((devis) => devis.ProjectId)
+  );
+
+  const devis = projects
+    .filter((project) => !quotedProjectIds.has(project.id))
+    .flatMap((project) => {
+      const quoteCount = faker.number.int({ min: 1, max: 2 });
+      const projectValue = Number(project.total_value || 5000);
+      const budgetAmount = budgetByProjectId.get(project.id) || 0;
+      const commercialBase = Math.max(projectValue, budgetAmount * 1.18, 5000);
+
+      return Array.from({ length: quoteCount }, (_, quoteIndex) => {
+        const issueDate = faker.date.between({
+          from: addDays(project.start_date || new Date(), -45),
+          to: project.start_date || new Date()
+        });
+        const status = quoteIndex === 0
+          ? faker.helpers.arrayElement(["Accepted", "Sent", "Pending"])
+          : faker.helpers.arrayElement(quoteStatuses);
+        const amountMultiplier = status === "Accepted"
+          ? faker.number.float({ min: 0.98, max: 1.08 })
+          : faker.number.float({ min: 0.9, max: 1.12 });
+
+        return {
+          reference: `DEV-${String(project.id).padStart(5, "0")}-${quoteIndex + 1}`,
+          amount: roundMoney(commercialBase * amountMultiplier),
+          status,
+          issue_date: issueDate,
+          validity_date: addDays(issueDate, faker.number.int({ min: 15, max: 60 })),
+          ClientId: project.ClientId,
+          ProjectId: project.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      });
+    });
+
+  if (!devis.length) {
+    console.log("No new commercial quotes needed");
+    return;
+  }
+
+  await Devis.bulkCreate(devis);
+
+  console.log(`${devis.length} commercial quotes generated`);
+}
+
+async function normalizeCommercialData(){
+
+  console.log("Normalizing commercial quote values...");
+
+  const projects = await Project.findAll({
+    attributes: ["id", "total_value"],
+    raw: true
+  });
+  const budgets = await Budget.findAll({
+    attributes: ["ProjectId", "amount"],
+    raw: true
+  });
+  const devisList = await Devis.findAll();
+
+  const projectValueById = new Map(
+    projects.map((project) => [
+      project.id,
+      Number(project.total_value || 0)
+    ])
+  );
+  const budgetByProjectId = new Map(
+    budgets.map((budget) => [
+      budget.ProjectId,
+      Number(budget.amount || 0)
+    ])
+  );
+
+  for (const devis of devisList) {
+    const projectValue = projectValueById.get(devis.ProjectId) || 0;
+    const budgetAmount = budgetByProjectId.get(devis.ProjectId) || 0;
+    const commercialBase = Math.max(projectValue, budgetAmount * 1.18, 5000);
+    const amountMultiplier = devis.status === "Accepted"
+      ? faker.number.float({ min: 0.98, max: 1.08 })
+      : faker.number.float({ min: 0.9, max: 1.12 });
+
+    await devis.update({
+      amount: roundMoney(commercialBase * amountMultiplier)
+    });
+  }
+
+  console.log(`${devisList.length} commercial quotes normalized`);
+}
+
 async function runSeeder(){
 
   try{
 
     await sequelize.authenticate();
 
+    const shouldReset = process.argv.includes("--reset");
+    const commercialOnly = process.argv.includes("--commercial-only");
+
+    if (shouldReset && commercialOnly) {
+      throw new Error("Use either --reset or --commercial-only, not both.");
+    }
+
+    if (shouldReset) {
+      console.log("Starting clean database reset and reseed...");
+
+      await resetDatabase();
+      await seedRoles();
+      await seedDefaultUsers();
+      await seedCategories();
+      await generateClients();
+      await generateEmployees();
+      await generateSalaries();
+      await generateFournisseurs();
+      await generateProjects();
+      await generateInvoices();
+      await generateExpenses();
+      await generateBudgets();
+      await generateDevis();
+      await normalizeCommercialData();
+
+      console.log("Clean database reset and reseed completed");
+      process.exit();
+    }
+
+    if (commercialOnly) {
+      console.log("Starting commercial data generation...");
+
+      await generateBudgets();
+      await generateDevis();
+      await normalizeCommercialData();
+
+      console.log("Commercial data generation completed");
+      process.exit();
+    }
+
     console.log("Starting MASSIVE data generation...");
 
+    await seedRoles();
+    await seedDefaultUsers();
+    await seedCategories();
     await generateClients();
     await generateEmployees();
     await generateSalaries();
@@ -355,6 +693,9 @@ async function runSeeder(){
     await generateProjects();
     await generateInvoices();
     await generateExpenses();
+    await generateBudgets();
+    await generateDevis();
+    await normalizeCommercialData();
     
 
     console.log("Massive data generation completed");

@@ -30,14 +30,33 @@ export const getCurrentUser = () => {
   return parseJwt(token)
 }
 
+const roleIdMap = {
+  1: 'Admin',
+  2: 'Manager',
+  3: 'Finance',
+}
+
+export const normalizeRole = (role) => {
+  if (role == null) return null
+
+  if (typeof role === 'number') {
+    return roleIdMap[role] || null
+  }
+
+  const roleText = String(role).trim()
+  return roleIdMap[roleText] || roleText || null
+}
+
 export const getCurrentUserRole = () => {
   const user = getCurrentUser()
 
-  return (
+  return normalizeRole(
     user?.role ||
     user?.Role?.name ||
     user?.roleName ||
     user?.RoleName ||
+    user?.RoleId ||
+    user?.roleId ||
     null
   )
 }

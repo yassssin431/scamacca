@@ -22,6 +22,9 @@ const DimProject = require("./dimProject.model");
 const DimCategory = require("./dimCategory.model");
 const DimFournisseur = require("./dimFournisseur.model");
 const DimEmployee = require("./dimEmployee.model");
+const ActivityLog = require("./activityLog.model");
+const Prediction = require("./prediction.model");
+const Alert = require("./alert.model");
 
 /* ================= RELATIONSHIPS ================= */
 
@@ -118,6 +121,11 @@ Devis.hasOne(Invoice, {
 });
 Invoice.belongsTo(Devis);
 
+FactRevenue.belongsTo(DimTime, { foreignKey: "time_id" });
+DimTime.hasMany(FactRevenue, { foreignKey: "time_id" });
+
+FactExpense.belongsTo(DimTime, { foreignKey: "time_id" });
+DimTime.hasMany(FactExpense, { foreignKey: "time_id" });
 
 module.exports = {
   sequelize,
@@ -143,5 +151,7 @@ module.exports = {
   DimCategory,
   DimFournisseur,
   DimEmployee,
-  
+  ActivityLog,
+  Prediction,
+  Alert
 };

@@ -1,65 +1,120 @@
-// controllers/budget.controller.js
-const { Budget } = require("../models");
+const { Budget, Project } = require("../models");
+const logActivity = require("../utils/activityLogger");
+const AppError = require("../utils/AppError"); // 🔥 nouvelle classe d'erreurs
 
 // CREATE
-exports.createBudget = async (req, res) => {
+exports.createBudget = async (req, res, next) => {
   try {
     const budget = await Budget.create(req.body);
-    return res.status(201).json(budget);
+
+    // ✅ LOG CREATE
+    await logActivity({
+      userId: req.user.id,
+      action: "CREATE_BUDGET",
+      entity: "Budget",
+      details: `Created budget ID ${budget.id}`,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Budget created successfully",
+      data: budget,
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error creating budget", error: error.message });
+    next(error);
   }
 };
 
 // READ ALL
-exports.getBudgets = async (req, res) => {
+exports.getBudgets = async (req, res, next) => {
   try {
-    const budgets = await Budget.findAll();
-    return res.status(200).json(budgets);
+    const budgets = await Budget.findAll({
+      include: Project,
+      order: [["start_date", "DESC"]],
+    });
+    res.json({
+      success: true,
+      message: "Budgets retrieved successfully",
+      data: budgets,
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching budgets", error: error.message });
+    next(error);
   }
 };
 
 // READ ONE
-exports.getBudgetById = async (req, res) => {
+exports.getBudgetById = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const budget = await Budget.findByPk(id);
+    const budget = await Budget.findByPk(req.params.id, {
+      include: Project,
+    });
+    if (!budget) {
+      throw new AppError("Budget not found", 404);
+    }
 
-    if (!budget) return res.status(404).json({ message: "Budget not found" });
-    return res.status(200).json(budget);
+    res.json({
+      success: true,
+      message: "Budget retrieved successfully",
+      data: budget,
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching budget", error: error.message });
+    next(error);
   }
 };
 
 // UPDATE
-exports.updateBudget = async (req, res) => {
+exports.updateBudget = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const budget = await Budget.findByPk(id);
+    const budget = await Budget.findByPk(req.params.id);
 
-    if (!budget) return res.status(404).json({ message: "Budget not found" });
+    if (!budget) {
+      throw new AppError("Budget not found", 404);
+    }
 
     await budget.update(req.body);
-    return res.status(200).json(budget);
+
+    // ✅ LOG UPDATE
+    await logActivity({
+      userId: req.user.id,
+      action: "UPDATE_BUDGET",
+      entity: "Budget",
+      details: `Updated budget ID ${req.params.id}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Budget updated successfully",
+      data: budget,
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error updating budget", error: error.message });
+    next(error);
   }
 };
 
 // DELETE
-exports.deleteBudget = async (req, res) => {
+exports.deleteBudget = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const budget = await Budget.findByPk(id);
+    const budget = await Budget.findByPk(req.params.id);
 
-    if (!budget) return res.status(404).json({ message: "Budget not found" });
+    if (!budget) {
+      throw new AppError("Budget not found", 404);
+    }
 
     await budget.destroy();
-    return res.status(200).json({ message: "Budget deleted successfully" });
+
+    // ✅ LOG DELETE
+    await logActivity({
+      userId: req.user.id,
+      action: "DELETE_BUDGET",
+      entity: "Budget",
+      details: `Deleted budget ID ${req.params.id}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Budget deleted successfully",
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error deleting budget", error: error.message });
+    next(error);
   }
 };

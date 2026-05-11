@@ -343,41 +343,51 @@ exports.loadFactRevenue = async () => {
 /* ===================================================== */
 
 exports.loadFactExpense = async () => {
+
   await FactExpense.destroy({ where: {} });
 
   const expenses = await Expense.findAll();
-  const times = await DimTime.findAll();
-
-  const timeMap = new Map();
-
-  for (let t of times) {
-    const key = new Date(t.date).toISOString().split("T")[0];
-    timeMap.set(key, t.time_id);
-  }
-
-  const rows = [];
 
   for (let exp of expenses) {
+
     if (!exp.date) continue;
 
-    const dateOnly = new Date(exp.date).toISOString().split("T")[0];
-    const timeId = timeMap.get(dateOnly);
+    const dateOnly =
+      new Date(exp.date)
+        .toISOString()
+        .split("T")[0];
 
-    if (!timeId) continue;
+    const time = await DimTime.findOne({
 
-    rows.push({
-      time_id: timeId,
-      project_id: exp.ProjectId,
-      category_id: exp.CategoryId,
-      fournisseur_id: exp.FournisseurId,
-      amount: exp.amount,
+      where: sequelize.where(
+        sequelize.fn("DATE", sequelize.col("date")),
+        dateOnly
+      )
+
     });
+
+    if (!time) continue;
+
+    await FactExpense.create({
+
+      time_id: time.time_id,
+
+      project_id: exp.ProjectId,
+
+      category_id: exp.CategoryId,
+
+      fournisseur_id: exp.FournisseurId,
+
+      amount: exp.amount,
+
+    });
+
   }
 
-  await FactExpense.bulkCreate(rows);
+  console.log("FactExpense Loaded");
 
-  console.log(`FactExpense Loaded: ${rows.length}`);
 };
+
 
 
 /* ===================================================== */
@@ -385,36 +395,44 @@ exports.loadFactExpense = async () => {
 /* ===================================================== */
 
 exports.loadFactSalary = async () => {
+
   await FactSalary.destroy({ where: {} });
 
-  const salaries = await sequelize.models.Salary.findAll();
-  const times = await DimTime.findAll();
-
-  const timeMap = new Map();
-
-  for (let t of times) {
-    const key = new Date(t.date).toISOString().split("T")[0];
-    timeMap.set(key, t.time_id);
-  }
-
-  const rows = [];
+  const salaries =
+    await sequelize.models.Salary.findAll();
 
   for (let sal of salaries) {
+
     if (!sal.payment_date) continue;
 
-    const dateOnly = new Date(sal.payment_date).toISOString().split("T")[0];
-    const timeId = timeMap.get(dateOnly);
+    const dateOnly =
+      new Date(sal.payment_date)
+        .toISOString()
+        .split("T")[0];
 
-    if (!timeId) continue;
+    const time = await DimTime.findOne({
 
-    rows.push({
-      time_id: timeId,
-      employee_id: sal.EmployeeId,
-      amount_paid: sal.amount_paid,
+      where: sequelize.where(
+        sequelize.fn("DATE", sequelize.col("date")),
+        dateOnly
+      )
+
     });
+
+    if (!time) continue;
+
+    await FactSalary.create({
+
+      time_id: time.time_id,
+
+      employee_id: sal.EmployeeId,
+
+      amount_paid: sal.amount_paid,
+
+    });
+
   }
 
-  await FactSalary.bulkCreate(rows);
+  console.log("FactSalary Loaded");
 
-  console.log(`FactSalary Loaded: ${rows.length}`);
 };

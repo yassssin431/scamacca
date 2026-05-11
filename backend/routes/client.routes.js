@@ -8,27 +8,45 @@ const {
   updateClientSchema,
 } = require("../validations/client.validation");
 
-// CREATE CLIENT (with validation)
+const { verifyToken } = require("../middleware/auth.middleware");
+const { authorizeRoles } = require("../middleware/role.middleware");
+const ROLES = require("../constants/roles");
+
 router.post(
   "/",
+  verifyToken,
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
   validate(createClientSchema),
   clientController.createClient
 );
 
-// GET ALL CLIENTS
-router.get("/", clientController.getAllClients);
+router.get(
+  "/",
+  verifyToken,
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  clientController.getAllClients
+);
 
-// GET ONE CLIENT
-router.get("/:id", clientController.getClientById);
+router.get(
+  "/:id",
+  verifyToken,
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  clientController.getClientById
+);
 
-// UPDATE CLIENT (with validation)
 router.put(
   "/:id",
+  verifyToken,
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
   validate(updateClientSchema),
   clientController.updateClient
 );
 
-// DELETE CLIENT
-router.delete("/:id", clientController.deleteClient);
+router.delete(
+  "/:id",
+  verifyToken,
+  authorizeRoles(ROLES.ADMIN),
+  clientController.deleteClient
+);
 
 module.exports = router;

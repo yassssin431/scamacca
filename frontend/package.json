@@ -3,8 +3,11 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "main": "desktop/main.js",
   "scripts": {
     "dev": "vite",
+    "electron": "cmd /c \"set ELECTRON_RUN_AS_NODE=& node_modules\\electron\\dist\\electron.exe %CD%\\desktop\"",
+    "electron:debug": "cmd /c \"set ELECTRON_RUN_AS_NODE=& node_modules\\electron\\dist\\electron.exe --enable-logging %CD%\\desktop\"",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
@@ -20,6 +23,7 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "electron": "^29.4.6",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",

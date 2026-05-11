@@ -1,97 +1,121 @@
 const { Expense, Category, Project, Fournisseur } = require("../models");
-const { sendSuccess, sendError } = require("../utils/response");
+const logActivity = require("../utils/activityLogger");
+const AppError = require("../utils/AppError"); // 🔥 nouvelle classe d'erreurs
 
 /* CREATE EXPENSE */
-exports.createExpense = async (req, res) => {
+exports.createExpense = async (req, res, next) => {
   try {
     const expense = await Expense.create(req.body);
 
-    return sendSuccess(
-      res,
-      "Expense created successfully",
-      expense,
-      201
-    );
+    // ✅ LOG CREATE
+    await logActivity({
+      userId: req.user.id,
+      action: "CREATE_EXPENSE",
+      entity: "Expense",
+      details: `Amount: ${expense.amount}`,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Expense created successfully",
+      data: expense,
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /* GET ALL EXPENSES */
-exports.getAllExpenses = async (req, res) => {
+exports.getAllExpenses = async (req, res, next) => {
   try {
     const expenses = await Expense.findAll({
       include: [Category, Project, Fournisseur],
     });
 
-    return sendSuccess(
-      res,
-      "Expenses retrieved successfully",
-      expenses
-    );
+    res.json({
+      success: true,
+      message: "Expenses retrieved successfully",
+      data: expenses,
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /* GET ONE EXPENSE */
-exports.getExpenseById = async (req, res) => {
+exports.getExpenseById = async (req, res, next) => {
   try {
     const expense = await Expense.findByPk(req.params.id, {
       include: [Category, Project, Fournisseur],
     });
 
     if (!expense) {
-      return sendError(res, "Expense not found", 404);
+      throw new AppError("Expense not found", 404);
     }
 
-    return sendSuccess(
-      res,
-      "Expense retrieved successfully",
-      expense
-    );
+    res.json({
+      success: true,
+      message: "Expense retrieved successfully",
+      data: expense,
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /* UPDATE EXPENSE */
-exports.updateExpense = async (req, res) => {
+exports.updateExpense = async (req, res, next) => {
   try {
     const expense = await Expense.findByPk(req.params.id);
 
     if (!expense) {
-      return sendError(res, "Expense not found", 404);
+      throw new AppError("Expense not found", 404);
     }
 
     await expense.update(req.body);
 
-    return sendSuccess(
-      res,
-      "Expense updated successfully",
-      expense
-    );
+    // ✅ LOG UPDATE
+    await logActivity({
+      userId: req.user.id,
+      action: "UPDATE_EXPENSE",
+      entity: "Expense",
+      details: `Updated expense ID ${req.params.id}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Expense updated successfully",
+      data: expense,
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /* DELETE EXPENSE */
-exports.deleteExpense = async (req, res) => {
+exports.deleteExpense = async (req, res, next) => {
   try {
     const expense = await Expense.findByPk(req.params.id);
 
     if (!expense) {
-      return sendError(res, "Expense not found", 404);
+      throw new AppError("Expense not found", 404);
     }
 
     await expense.destroy();
 
-    return sendSuccess(
-      res,
-      "Expense deleted successfully"
-    );
+    // ✅ LOG DELETE
+    await logActivity({
+      userId: req.user.id,
+      action: "DELETE_EXPENSE",
+      entity: "Expense",
+      details: `Deleted expense ID ${req.params.id}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Expense deleted successfully",
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };

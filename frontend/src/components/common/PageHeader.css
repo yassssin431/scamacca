@@ -1,38 +1,68 @@
 .page-header {
+  background: white;
+  border: 1px solid #e5eaf0;
+  border-radius: 16px;
+  padding: 22px 24px;
+  box-shadow: 0 4px 20px rgba(25, 28, 30, 0.045);
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 26px;
-  gap: 16px;
+  align-items: center;
+  gap: 18px;
 }
 
-.page-header-left h2 {
-  margin: 0 0 6px;
+.page-kicker {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: #006c4a;
+  margin-bottom: 8px;
+}
+
+.page-header h1,
+.page-header h2 {
+  font-family: 'Manrope', sans-serif;
   font-size: 30px;
   font-weight: 800;
   color: #041627;
-  font-family: 'Manrope', sans-serif;
-}
-
-.page-header-left p {
   margin: 0;
-  font-size: 13px;
-  color: #64748b;
 }
 
-.page-header-right {
+.page-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.page-header-actions {
   display: flex;
-  align-items: center;
   gap: 10px;
+  align-items: center;
+}
+
+body.dark-mode .page-header {
+  background: linear-gradient(135deg, #0b1724, #101f2e);
+  border-color: #203245;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
+}
+
+body.dark-mode .page-kicker {
+  color: #92f3c5;
+}
+
+body.dark-mode .page-header h1,
+body.dark-mode .page-header h2 {
+  color: #f8fafc;
+}
+
+body.dark-mode .page-header p {
+  color: #9fb0c5;
 }
 
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .page-header-left h2 {
-    font-size: 24px;
   }
 }

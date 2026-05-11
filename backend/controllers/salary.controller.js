@@ -1,65 +1,120 @@
 // controllers/salary.controller.js
 const { Salary } = require("../models");
+const logActivity = require("../utils/activityLogger");
+const AppError = require("../utils/AppError"); // 🔥 nouvelle classe d'erreurs
 
 // CREATE
-exports.createSalary = async (req, res) => {
+exports.createSalary = async (req, res, next) => {
   try {
     const salary = await Salary.create(req.body);
-    return res.status(201).json(salary);
+
+    // ✅ LOG CREATE
+    await logActivity({
+      userId: req.user.id,
+      action: "CREATE_SALARY",
+      entity: "Salary",
+      details: `Created salary ID ${salary.id} for employee ${salary.employeeId}`,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Salary created successfully",
+      data: salary,
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error creating salary", error: error.message });
+    next(error);
   }
 };
 
 // READ ALL
-exports.getSalaries = async (req, res) => {
+exports.getSalaries = async (req, res, next) => {
   try {
     const salaries = await Salary.findAll();
-    return res.status(200).json(salaries);
+    res.json({
+      success: true,
+      message: "Salaries retrieved successfully",
+      data: salaries,
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching salaries", error: error.message });
+    next(error);
   }
 };
 
 // READ ONE
-exports.getSalaryById = async (req, res) => {
+exports.getSalaryById = async (req, res, next) => {
   try {
     const { id } = req.params;
     const salary = await Salary.findByPk(id);
 
-    if (!salary) return res.status(404).json({ message: "Salary not found" });
-    return res.status(200).json(salary);
+    if (!salary) {
+      throw new AppError("Salary not found", 404);
+    }
+
+    res.json({
+      success: true,
+      message: "Salary retrieved successfully",
+      data: salary,
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error fetching salary", error: error.message });
+    next(error);
   }
 };
 
 // UPDATE
-exports.updateSalary = async (req, res) => {
+exports.updateSalary = async (req, res, next) => {
   try {
     const { id } = req.params;
     const salary = await Salary.findByPk(id);
 
-    if (!salary) return res.status(404).json({ message: "Salary not found" });
+    if (!salary) {
+      throw new AppError("Salary not found", 404);
+    }
 
     await salary.update(req.body);
-    return res.status(200).json(salary);
+
+    // ✅ LOG UPDATE
+    await logActivity({
+      userId: req.user.id,
+      action: "UPDATE_SALARY",
+      entity: "Salary",
+      details: `Updated salary ID ${req.params.id}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Salary updated successfully",
+      data: salary,
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error updating salary", error: error.message });
+    next(error);
   }
 };
 
 // DELETE
-exports.deleteSalary = async (req, res) => {
+exports.deleteSalary = async (req, res, next) => {
   try {
     const { id } = req.params;
     const salary = await Salary.findByPk(id);
 
-    if (!salary) return res.status(404).json({ message: "Salary not found" });
+    if (!salary) {
+      throw new AppError("Salary not found", 404);
+    }
 
     await salary.destroy();
-    return res.status(200).json({ message: "Salary deleted successfully" });
+
+    // ✅ LOG DELETE
+    await logActivity({
+      userId: req.user.id,
+      action: "DELETE_SALARY",
+      entity: "Salary",
+      details: `Deleted salary ID ${req.params.id}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Salary deleted successfully",
+    });
   } catch (error) {
-    return res.status(500).json({ message: "Error deleting salary", error: error.message });
+    next(error);
   }
 };

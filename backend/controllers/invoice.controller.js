@@ -1,97 +1,121 @@
 const { Invoice, Client, Project, Payment } = require("../models");
-const { sendSuccess, sendError } = require("../utils/response");
+const logActivity = require("../utils/activityLogger");
+const AppError = require("../utils/AppError"); // 🔥 nouvelle classe d'erreurs
 
 /* CREATE INVOICE */
-exports.createInvoice = async (req, res) => {
+exports.createInvoice = async (req, res, next) => {
   try {
     const invoice = await Invoice.create(req.body);
 
-    return sendSuccess(
-      res,
-      "Invoice created successfully",
-      invoice,
-      201
-    );
+    // ✅ LOG CREATE
+    await logActivity({
+      userId: req.user.id,
+      action: "CREATE_INVOICE",
+      entity: "Invoice",
+      details: `Created invoice ID ${invoice.id}`,
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Invoice created successfully",
+      data: invoice,
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /* GET ALL INVOICES */
-exports.getAllInvoices = async (req, res) => {
+exports.getAllInvoices = async (req, res, next) => {
   try {
     const invoices = await Invoice.findAll({
       include: [Client, Project, Payment],
     });
 
-    return sendSuccess(
-      res,
-      "Invoices retrieved successfully",
-      invoices
-    );
+    res.json({
+      success: true,
+      message: "Invoices retrieved successfully",
+      data: invoices,
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /* GET ONE INVOICE */
-exports.getInvoiceById = async (req, res) => {
+exports.getInvoiceById = async (req, res, next) => {
   try {
     const invoice = await Invoice.findByPk(req.params.id, {
       include: [Client, Project, Payment],
     });
 
     if (!invoice) {
-      return sendError(res, "Invoice not found", 404);
+      throw new AppError("Invoice not found", 404);
     }
 
-    return sendSuccess(
-      res,
-      "Invoice retrieved successfully",
-      invoice
-    );
+    res.json({
+      success: true,
+      message: "Invoice retrieved successfully",
+      data: invoice,
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /* UPDATE INVOICE */
-exports.updateInvoice = async (req, res) => {
+exports.updateInvoice = async (req, res, next) => {
   try {
     const invoice = await Invoice.findByPk(req.params.id);
 
     if (!invoice) {
-      return sendError(res, "Invoice not found", 404);
+      throw new AppError("Invoice not found", 404);
     }
 
     await invoice.update(req.body);
 
-    return sendSuccess(
-      res,
-      "Invoice updated successfully",
-      invoice
-    );
+    // ✅ LOG UPDATE
+    await logActivity({
+      userId: req.user.id,
+      action: "UPDATE_INVOICE",
+      entity: "Invoice",
+      details: `Updated invoice ID ${req.params.id}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Invoice updated successfully",
+      data: invoice,
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };
 
 /* DELETE INVOICE */
-exports.deleteInvoice = async (req, res) => {
+exports.deleteInvoice = async (req, res, next) => {
   try {
     const invoice = await Invoice.findByPk(req.params.id);
 
     if (!invoice) {
-      return sendError(res, "Invoice not found", 404);
+      throw new AppError("Invoice not found", 404);
     }
 
     await invoice.destroy();
 
-    return sendSuccess(
-      res,
-      "Invoice deleted successfully"
-    );
+    // ✅ LOG DELETE
+    await logActivity({
+      userId: req.user.id,
+      action: "DELETE_INVOICE",
+      entity: "Invoice",
+      details: `Deleted invoice ID ${req.params.id}`,
+    });
+
+    res.json({
+      success: true,
+      message: "Invoice deleted successfully",
+    });
   } catch (error) {
-    return sendError(res, error.message, 500);
+    next(error);
   }
 };

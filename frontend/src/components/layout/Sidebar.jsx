@@ -7,6 +7,7 @@ const translations = {
     subtitle: 'Financial Support System',
     dashboard: 'Dashboard',
     transactions: 'Financial Transactions',
+    commercialCycle: 'Commercial Cycle',
     masterData: 'Master Data',
     powerbi: 'Power BI',
     financialAnalysis: 'Financial Analysis',
@@ -44,41 +45,55 @@ function Sidebar() {
     {
       to: '/dashboard',
       label: t.dashboard,
+      icon: 'space_dashboard',
       roles: ['Admin', 'Manager', 'Finance'],
     },
     {
       to: '/financial-transactions',
       label: t.transactions,
+      icon: 'receipt_long',
       roles: ['Admin', 'Finance'],
+    },
+    {
+      to: '/commercial-cycle',
+      label: t.commercialCycle || 'Cycle commercial',
+      icon: 'sync_alt',
+      roles: ['Admin', 'Manager', 'Finance'],
     },
     {
       to: '/master-data',
       label: t.masterData,
-      roles: ['Admin', 'Finance'],
+      icon: 'database',
+      roles: ['Admin', 'Manager', 'Finance'],
     },
     {
       to: '/powerbi',
       label: t.powerbi,
+      icon: 'bar_chart',
       roles: ['Admin', 'Manager', 'Finance'],
     },
     {
       to: '/financial-analysis',
       label: t.financialAnalysis,
+      icon: 'query_stats',
       roles: ['Admin', 'Manager', 'Finance'],
     },
     {
       to: '/ai-analysis',
       label: t.aiAnalysis,
-      roles: ['Admin', 'Manager'],
+      icon: 'psychology',
+      roles: ['Admin', 'Manager', 'Finance'],
     },
     {
       to: '/user-management',
       label: t.userManagement,
+      icon: 'manage_accounts',
       roles: ['Admin'],
     },
     {
       to: '/settings',
       label: t.settings,
+      icon: 'settings',
       roles: ['Admin', 'Manager', 'Finance'],
     },
   ]
@@ -86,7 +101,10 @@ function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-brand">
-        <h2>Tradrly</h2>
+        <div className="sidebar-logo">
+          <span className="material-symbols-outlined">analytics</span>
+          <h2>Tradrly</h2>
+        </div>
         <p>{t.subtitle}</p>
       </div>
 
@@ -101,13 +119,19 @@ function Sidebar() {
                 isActive ? 'sidebar-link active' : 'sidebar-link'
               }
             >
-              {link.label}
+              <span className="material-symbols-outlined">{link.icon}</span>
+              <span>{link.label}</span>
             </NavLink>
           ))}
       </nav>
 
       <div className="sidebar-footer">
+        <div className="sidebar-role">
+          <span className="sidebar-role-dot" />
+          <span>{role}</span>
+        </div>
         <button className="sidebar-logout" onClick={handleLogout}>
+          <span className="material-symbols-outlined">logout</span>
           {t.logout}
         </button>
       </div>

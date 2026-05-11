@@ -8,27 +8,45 @@ const {
   updateExpenseSchema,
 } = require("../validations/expense.validation");
 
-// CREATE
+const { verifyToken } = require("../middleware/auth.middleware");
+const { authorizeRoles } = require("../middleware/role.middleware");
+const ROLES = require("../constants/roles");
+
 router.post(
   "/",
+  verifyToken,
+  authorizeRoles(ROLES.FINANCE),
   validate(createExpenseSchema),
   expenseController.createExpense
 );
 
-// GET ALL
-router.get("/", expenseController.getAllExpenses);
+router.get(
+  "/",
+  verifyToken,
+  authorizeRoles(ROLES.FINANCE),
+  expenseController.getAllExpenses
+);
 
-// GET ONE
-router.get("/:id", expenseController.getExpenseById);
+router.get(
+  "/:id",
+  verifyToken,
+  authorizeRoles(ROLES.FINANCE),
+  expenseController.getExpenseById
+);
 
-// UPDATE
 router.put(
   "/:id",
+  verifyToken,
+  authorizeRoles(ROLES.FINANCE),
   validate(updateExpenseSchema),
   expenseController.updateExpense
 );
 
-// DELETE
-router.delete("/:id", expenseController.deleteExpense);
+router.delete(
+  "/:id",
+  verifyToken,
+  authorizeRoles(ROLES.FINANCE),
+  expenseController.deleteExpense
+);
 
 module.exports = router;
