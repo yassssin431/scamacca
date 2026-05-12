@@ -16,7 +16,7 @@ const {
 router.post(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  authorizeRoles(ROLES.FINANCE),
   validate(createDevisSchema),
   devisController.createDevis
 );
@@ -25,7 +25,7 @@ router.post(
 router.get(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   devisController.getDevisList
 );
 
@@ -33,14 +33,14 @@ router.get(
 router.post(
   "/:id/convert-to-invoice",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  authorizeRoles(ROLES.FINANCE),
   devisController.convertDevisToInvoice
 );
 
 router.get(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   devisController.getDevisById
 );
 
@@ -48,7 +48,7 @@ router.get(
 router.put(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  authorizeRoles(ROLES.FINANCE),
   validate(updateDevisSchema),
   devisController.updateDevis
 );
@@ -57,7 +57,7 @@ router.put(
 router.delete(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN),
+  authorizeRoles(ROLES.FINANCE),
   devisController.deleteDevis
 );
 

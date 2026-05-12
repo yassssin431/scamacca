@@ -36,6 +36,8 @@ const roleIdMap = {
   3: 'Finance',
 }
 
+// Tokens may contain either numeric backend role IDs or role names depending on
+// the endpoint/version. Normalize both formats before applying frontend RBAC.
 export const normalizeRole = (role) => {
   if (role == null) return null
 
@@ -50,6 +52,8 @@ export const normalizeRole = (role) => {
 export const getCurrentUserRole = () => {
   const user = getCurrentUser()
 
+  // Support several token payload shapes so auth keeps working if the backend
+  // names the role field slightly differently.
   return normalizeRole(
     user?.role ||
     user?.Role?.name ||

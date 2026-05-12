@@ -16,7 +16,7 @@ const {
 router.post(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
+  authorizeRoles(ROLES.FINANCE),
   validate(createSalarySchema),
   salaryController.createSalary
 );
@@ -41,7 +41,7 @@ router.get(
 router.put(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
+  authorizeRoles(ROLES.FINANCE),
   validate(updateSalarySchema),
   salaryController.updateSalary
 );
@@ -50,7 +50,7 @@ router.put(
 router.delete(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN),
+  authorizeRoles(ROLES.FINANCE),
   salaryController.deleteSalary
 );
 

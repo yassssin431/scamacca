@@ -16,7 +16,7 @@ const {
 router.post(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
+  authorizeRoles(ROLES.FINANCE),
   validate(createInvoiceSchema),
   invoiceController.createInvoice
 );
@@ -25,7 +25,7 @@ router.post(
 router.get(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   invoiceController.getAllInvoices
 );
 
@@ -33,7 +33,7 @@ router.get(
 router.get(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   invoiceController.getInvoiceById
 );
 
@@ -41,7 +41,7 @@ router.get(
 router.put(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
+  authorizeRoles(ROLES.FINANCE),
   validate(updateInvoiceSchema),
   invoiceController.updateInvoice
 );
@@ -50,7 +50,7 @@ router.put(
 router.delete(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN),
+  authorizeRoles(ROLES.FINANCE),
   invoiceController.deleteInvoice
 );
 

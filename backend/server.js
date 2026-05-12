@@ -40,7 +40,7 @@ const { authorizeRoles } = require("./middleware/role.middleware");
 const app = express();
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200, // max 200 requests per IP
+  max: 1000, // max 1000 requests per IP
   handler: (req, res) => {
     res.status(429).json({
       success: false,
@@ -50,7 +50,8 @@ const globalLimiter = rateLimit({
 });
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // only 5 login attempts
+  max: 20, // protects login while still allowing local role testing
+  skipSuccessfulRequests: true,
   handler: (req, res) => {
     res.status(429).json({
       success: false,

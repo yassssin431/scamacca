@@ -116,10 +116,13 @@ Budget.belongsTo(Project);
 
 // Devis → Invoice (0..1)
 Devis.hasOne(Invoice, {
+  foreignKey: "DevisId",
   onDelete: "SET NULL",
   onUpdate: "CASCADE"
 });
-Invoice.belongsTo(Devis);
+Invoice.belongsTo(Devis, {
+  foreignKey: "DevisId"
+});
 
 FactRevenue.belongsTo(DimTime, { foreignKey: "time_id" });
 DimTime.hasMany(FactRevenue, { foreignKey: "time_id" });

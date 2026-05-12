@@ -1,3 +1,3 @@
-2026/05/10-08:47:06.368 5424 Reusing MANIFEST C:\Projects\my-project-main\frontend\.electron-user-data\Local Storage\leveldb/MANIFEST-000001
-2026/05/10-08:47:06.384 5424 Recovering log #3
-2026/05/10-08:47:06.385 5424 Reusing old log C:\Projects\my-project-main\frontend\.electron-user-data\Local Storage\leveldb/000003.log 
+2026/05/10-11:55:38.516 8cc Reusing MANIFEST C:\Projects\my-project-main\frontend\.electron-user-data\Local Storage\leveldb/MANIFEST-000001
+2026/05/10-11:55:38.529 8cc Recovering log #3
+2026/05/10-11:55:38.530 8cc Reusing old log C:\Projects\my-project-main\frontend\.electron-user-data\Local Storage\leveldb/000003.log 

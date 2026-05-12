@@ -16,7 +16,7 @@ const {
 router.post(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
+  authorizeRoles(ROLES.FINANCE),
   validate(createPaymentSchema),
   paymentController.createPayment
 );
@@ -25,7 +25,7 @@ router.post(
 router.get(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   paymentController.getAllPayments
 );
 
@@ -33,7 +33,7 @@ router.get(
 router.delete(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN),
+  authorizeRoles(ROLES.FINANCE),
   paymentController.deletePayment
 );
 

@@ -25,7 +25,7 @@ router.post(
 router.get(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   projectController.getAllProjects
 );
 
@@ -33,7 +33,7 @@ router.get(
 router.get(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   projectController.getProjectById
 );
 

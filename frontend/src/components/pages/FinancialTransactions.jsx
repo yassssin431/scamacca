@@ -308,6 +308,9 @@ function FinancialTransactions() {
   const language = localStorage.getItem('language') || 'English'
 const t = translations[language] || translations.English
   const role = getCurrentUserRole()
+
+  // Financial transactions can be visible to more than one role, but the
+  // action buttons below still use canCreate/canUpdate/canDelete for RBAC.
   const canViewInvoices = canAccessResource('invoices', role)
   const canViewExpenses = canAccessResource('expenses', role)
   const canViewSalaries = canAccessResource('salaries', role)
@@ -425,6 +428,8 @@ const [editInvoiceData, setEditInvoiceData] = useState({
 })
 
   useEffect(() => {
+    // Each loader is isolated so a forbidden/failed dataset does not blank the
+    // entire page. Tabs can still render whatever the role is allowed to see.
     const fetchInvoices = async () => {
       try {
         const response = await authFetch(`${API_BASE_URL}/invoices`)

@@ -218,6 +218,9 @@ function MasterData() {
   const language = localStorage.getItem('language') || 'English'
   const t = translations[language] || translations.English
   const role = getCurrentUserRole()
+
+  // Master data uses the same RBAC helpers as the rest of the app so tabs,
+  // fetches, and action buttons stay aligned with protected backend routes.
   const canViewClients = canAccessResource('clients', role)
   const canViewProjects = canAccessResource('projects', role)
   const canViewEmployees = canAccessResource('employees', role)
@@ -359,6 +362,7 @@ function MasterData() {
   })
 
   const visibleTabs = [
+    // Hide tabs the user cannot load instead of showing empty unauthorized pages.
     canViewClients && { id: 'clients', label: t.clients },
     canViewProjects && { id: 'projects', label: t.projects },
     canViewEmployees && { id: 'employees', label: t.employees },
@@ -397,6 +401,8 @@ function MasterData() {
           fournisseursRes,
           expensesRes,
         ] = await Promise.all([
+          // Skipped resources resolve as empty successful responses. This keeps
+          // Promise.all stable even when a role only sees part of master data.
           canViewClients ? authFetch(`${API_BASE_URL}/clients`) : Promise.resolve({ ok: true, json: async () => [] }),
           canViewProjects ? authFetch(`${API_BASE_URL}/projects`) : Promise.resolve({ ok: true, json: async () => [] }),
           canViewEmployees ? authFetch(`${API_BASE_URL}/employees`) : Promise.resolve({ ok: true, json: async () => [] }),

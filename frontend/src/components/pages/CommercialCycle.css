@@ -235,14 +235,32 @@
   gap: 12px;
 }
 
+.invoice-search {
+  min-height: 44px;
+  width: 100%;
+  border: 1px solid #d8e0ea;
+  border-radius: 8px;
+  padding: 0 14px;
+  margin-bottom: 14px;
+  color: #06172a;
+  background: #f8fafc;
+  font-weight: 700;
+}
+
 .compact-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
-  justify-content: space-between;
   gap: 16px;
   border: 1px solid #e8edf3;
   border-radius: 8px;
   padding: 14px;
+}
+
+.compact-row.highlighted {
+  border-color: #008767;
+  background: #ecfdf5;
+  box-shadow: 0 12px 26px rgba(0, 135, 103, 0.12);
 }
 
 .compact-row div {
@@ -254,6 +272,36 @@
 .compact-row span {
   color: #64748b;
   font-size: 12px;
+}
+
+.ghost-action {
+  background: #eef2f7;
+  color: #06172a;
+  white-space: nowrap;
+}
+
+.selected-invoice-card {
+  border: 1px solid #c6f6d5;
+  border-radius: 8px;
+  background: #ecfdf5;
+  padding: 12px;
+  display: grid;
+  gap: 4px;
+}
+
+.selected-invoice-card span,
+.selected-invoice-card small {
+  color: #047857;
+  font-weight: 800;
+}
+
+.selected-invoice-card strong {
+  color: #06172a;
+  font-size: 20px;
+}
+
+.payment-history {
+  margin-top: 14px;
 }
 
 .restricted-panel {
@@ -285,7 +333,8 @@ body.dark-mode .commercial-panel td {
 body.dark-mode .commercial-form input,
 body.dark-mode .commercial-form select,
 body.dark-mode .payment-form input,
-body.dark-mode .payment-form select {
+body.dark-mode .payment-form select,
+body.dark-mode .invoice-search {
   background: #102236;
   border-color: #294159;
   color: #f8fafc;
@@ -294,6 +343,17 @@ body.dark-mode .payment-form select {
 body.dark-mode .compact-row,
 body.dark-mode .restricted-panel {
   border-color: #294159;
+}
+
+body.dark-mode .compact-row.highlighted,
+body.dark-mode .selected-invoice-card {
+  background: #0f2f2a;
+  border-color: #0fbc8c;
+}
+
+body.dark-mode .ghost-action {
+  background: #1c3147;
+  color: #f8fafc;
 }
 
 @media (max-width: 1180px) {
@@ -307,7 +367,8 @@ body.dark-mode .restricted-panel {
 @media (max-width: 760px) {
   .commercial-kpis,
   .commercial-grid,
-  .commercial-form {
+  .commercial-form,
+  .compact-row {
     grid-template-columns: 1fr;
   }
 

@@ -106,9 +106,8 @@ exports.convertDevisToInvoice = async (req, res, next) => {
   try {
     const { id } = req.params;
     const devis = await Devis.findByPk(id, {
-      include: [Invoice],
       transaction,
-      lock: transaction.LOCK?.UPDATE || true,
+      lock: true,
     });
 
     if (!devis) {
@@ -119,12 +118,17 @@ exports.convertDevisToInvoice = async (req, res, next) => {
       throw new AppError("Only active or accepted devis can be converted", 400);
     }
 
-    if (devis.Invoice) {
+    const existingInvoice = await Invoice.findOne({
+      where: { DevisId: devis.id },
+      transaction,
+    });
+
+    if (existingInvoice) {
       await transaction.commit();
       return res.json({
         success: true,
         message: "Devis already converted to invoice",
-        data: devis.Invoice,
+        data: existingInvoice,
       });
     }
 

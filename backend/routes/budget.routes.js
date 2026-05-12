@@ -24,7 +24,7 @@ router.post(
 router.get(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.FINANCE),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   budgetController.getBudgets
 );
 
@@ -32,7 +32,7 @@ router.get(
 router.get(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.FINANCE),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   budgetController.getBudgetById
 );
 

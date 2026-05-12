@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const { faker } = require("@faker-js/faker");
+const runFullETL = require("../etl/fullETL");
 faker.seed(456);
 
 const {
@@ -9,6 +10,7 @@ const {
   Client,
   Project,
   Invoice,
+  Payment,
   Expense,
   Employee,
   Category,
@@ -375,6 +377,65 @@ async function generateInvoices(){
   console.log("10,000 invoices generated");
 
 }
+
+async function generatePayments(){
+
+  console.log("Generating invoice payments...");
+
+  const existingPayments = await Payment.findAll({
+    attributes: ["InvoiceId"],
+    raw: true
+  });
+  const invoices = await Invoice.findAll();
+  const invoiceIdsWithPayments = new Set(
+    existingPayments.map((payment) => payment.InvoiceId)
+  );
+  const methods = ["Bank Transfer", "Card", "Check", "Mobile Payment"];
+  const payments = [];
+
+  for (const invoice of invoices) {
+    if (invoiceIdsWithPayments.has(invoice.id)) continue;
+
+    const status = String(invoice.status || "").toLowerCase();
+    const shouldCreatePayment =
+      status === "paid" ||
+      (status === "pending" && faker.number.float({ min: 0, max: 1 }) < 0.18) ||
+      (status === "overdue" && faker.number.float({ min: 0, max: 1 }) < 0.35);
+
+    if (!shouldCreatePayment) continue;
+
+    const invoiceAmount = Number(invoice.amount || 0);
+    const paidAmount = status === "paid"
+      ? invoiceAmount
+      : roundMoney(invoiceAmount * faker.number.float({ min: 0.25, max: 0.85 }));
+    const issueDate = invoice.issue_date ? new Date(invoice.issue_date) : faker.date.past();
+    const dueDate = invoice.due_date ? new Date(invoice.due_date) : new Date();
+    const paymentDate = faker.date.between({
+      from: issueDate,
+      to: dueDate > issueDate ? dueDate : new Date()
+    });
+
+    payments.push({
+      amount: roundMoney(paidAmount),
+      payment_date: paymentDate,
+      method: faker.helpers.arrayElement(methods),
+      reference: `PAY-${invoice.reference || invoice.id}`,
+      InvoiceId: invoice.id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+  }
+
+  if (!payments.length) {
+    console.log("No new payments needed");
+    return;
+  }
+
+  await Payment.bulkCreate(payments);
+
+  console.log(`${payments.length} invoice payments generated`);
+}
+
 async function generateExpenses(){
 
   console.log("Generating expenses...");
@@ -643,9 +704,10 @@ async function runSeeder(){
 
     const shouldReset = process.argv.includes("--reset");
     const commercialOnly = process.argv.includes("--commercial-only");
+    const paymentsOnly = process.argv.includes("--payments-only");
 
-    if (shouldReset && commercialOnly) {
-      throw new Error("Use either --reset or --commercial-only, not both.");
+    if ([shouldReset, commercialOnly, paymentsOnly].filter(Boolean).length > 1) {
+      throw new Error("Use only one mode: --reset, --commercial-only or --payments-only.");
     }
 
     if (shouldReset) {
@@ -661,10 +723,12 @@ async function runSeeder(){
       await generateFournisseurs();
       await generateProjects();
       await generateInvoices();
+      await generatePayments();
       await generateExpenses();
       await generateBudgets();
       await generateDevis();
       await normalizeCommercialData();
+      await runFullETL();
 
       console.log("Clean database reset and reseed completed");
       process.exit();
@@ -676,8 +740,18 @@ async function runSeeder(){
       await generateBudgets();
       await generateDevis();
       await normalizeCommercialData();
+      await generatePayments();
 
       console.log("Commercial data generation completed");
+      process.exit();
+    }
+
+    if (paymentsOnly) {
+      console.log("Starting payment data generation...");
+
+      await generatePayments();
+
+      console.log("Payment data generation completed");
       process.exit();
     }
 
@@ -692,6 +766,7 @@ async function runSeeder(){
     await generateFournisseurs();
     await generateProjects();
     await generateInvoices();
+    await generatePayments();
     await generateExpenses();
     await generateBudgets();
     await generateDevis();

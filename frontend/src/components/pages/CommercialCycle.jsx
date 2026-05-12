@@ -6,7 +6,7 @@ import EmptyState from '../common/EmptyState'
 import Toast from '../common/Toast'
 import { apiRequest, readOptionalData } from '../../services/authFetch'
 import { getCurrentUserRole } from '../../services/auth'
-import { canAccessResource } from '../../services/permissions'
+import { ROLES, canAccessResource } from '../../services/permissions'
 import './CommercialCycle.css'
 
 const translations = {
@@ -40,6 +40,11 @@ const translations = {
     selectClient: 'Select client',
     selectProject: 'Select project',
     selectInvoice: 'Select invoice',
+    invoiceSearch: 'Search invoice, client or project',
+    payableInvoice: 'Invoice ready for payment',
+    payThisInvoice: 'Pay this invoice',
+    recentInvoices: 'Recent invoices',
+    recentPayments: 'Recent payments',
     save: 'Save',
     paymentSaved: 'Payment registered successfully',
     quoteSaved: 'Quote created successfully',
@@ -76,6 +81,11 @@ const translations = {
     selectClient: 'Selectionner client',
     selectProject: 'Selectionner projet',
     selectInvoice: 'Selectionner facture',
+    invoiceSearch: 'Rechercher facture, client ou projet',
+    payableInvoice: 'Facture prete au paiement',
+    payThisInvoice: 'Payer cette facture',
+    recentInvoices: 'Factures recentes',
+    recentPayments: 'Paiements recents',
     save: 'Enregistrer',
     paymentSaved: 'Paiement enregistre avec succes',
     quoteSaved: 'Devis cree avec succes',
@@ -102,11 +112,21 @@ function getName(item, fallback = '-') {
   return item?.name || item?.company || item?.reference || fallback
 }
 
+function getPaidAmount(invoice) {
+  return (invoice?.Payments || []).reduce((sum, payment) => sum + Number(payment.amount || 0), 0)
+}
+
 function CommercialCycle() {
   const language = localStorage.getItem('language') || 'English'
   const t = translations[language] || translations.English
   const role = getCurrentUserRole()
+
+  // Read permissions come from the central RBAC map; action permissions stay
+  // stricter because Finance owns the commercial/financial workflow.
   const canUseQuotes = canAccessResource('devis', role)
+  const canManageQuotes = role === ROLES.FINANCE
+  const canConvertQuotes = role === ROLES.FINANCE
+  const canRegisterPayments = role === ROLES.FINANCE
   const canUseInvoices = canAccessResource('invoices', role)
   const canUsePayments = canAccessResource('payments', role)
   const canUseBudgets = canAccessResource('budgets', role)
@@ -119,6 +139,8 @@ function CommercialCycle() {
   const [budgets, setBudgets] = useState([])
   const [clients, setClients] = useState([])
   const [projects, setProjects] = useState([])
+  const [invoiceSearch, setInvoiceSearch] = useState('')
+  const [highlightedInvoiceId, setHighlightedInvoiceId] = useState(null)
   const [quoteForm, setQuoteForm] = useState({
     reference: '',
     amount: '',
@@ -148,12 +170,15 @@ function CommercialCycle() {
         clientsData,
         projectsData,
       ] = await Promise.all([
+        // Each request is conditional so restricted roles never spam protected
+        // endpoints. Optional reads also turn 403/401 into empty sections.
         canUseQuotes ? readOptionalData(`${API_BASE_URL}/devis`, []) : [],
         canUseInvoices ? readOptionalData(`${API_BASE_URL}/invoices`, []) : [],
         canUsePayments ? readOptionalData(`${API_BASE_URL}/payments`, []) : [],
         canUseBudgets ? readOptionalData(`${API_BASE_URL}/budgets`, []) : [],
-        canUseQuotes ? readOptionalData(`${API_BASE_URL}/clients`, []) : [],
-        canUseQuotes ? readOptionalData(`${API_BASE_URL}/projects`, []) : [],
+        // Only Finance needs lookup lists because only Finance can create quotes.
+        canManageQuotes ? readOptionalData(`${API_BASE_URL}/clients`, []) : [],
+        canManageQuotes ? readOptionalData(`${API_BASE_URL}/projects`, []) : [],
       ])
 
       setQuotes(quotesData)
@@ -182,6 +207,44 @@ function CommercialCycle() {
 
     return { quoteValue, invoiceValue, paymentValue, budgetValue }
   }, [quotes, invoices, payments, budgets])
+
+  const visibleInvoices = useMemo(() => {
+    const query = invoiceSearch.trim().toLowerCase()
+
+    // Keep the freshly converted or selected invoice at the top so Finance can
+    // immediately register its payment without hunting through thousands of rows.
+    const sorted = [...invoices].sort((a, b) => {
+      if (String(a.id) === String(highlightedInvoiceId)) return -1
+      if (String(b.id) === String(highlightedInvoiceId)) return 1
+      return Number(b.id || 0) - Number(a.id || 0)
+    })
+
+    if (!query) return sorted
+
+    return sorted.filter((invoice) => {
+      const haystack = [
+        invoice.reference,
+        invoice.status,
+        getName(invoice.Client),
+        getName(invoice.Project),
+        invoice.amount,
+      ]
+        .join(' ')
+        .toLowerCase()
+
+      return haystack.includes(query)
+    })
+  }, [highlightedInvoiceId, invoiceSearch, invoices])
+
+  const payableInvoices = useMemo(
+    () => visibleInvoices.filter((invoice) => invoice.status !== 'Paid'),
+    [visibleInvoices]
+  )
+
+  const selectedInvoice = useMemo(
+    () => invoices.find((invoice) => String(invoice.id) === String(paymentForm.InvoiceId)),
+    [invoices, paymentForm.InvoiceId]
+  )
 
   const createQuote = async (event) => {
     event.preventDefault()
@@ -217,15 +280,42 @@ function CommercialCycle() {
 
   const convertQuote = async (quote) => {
     try {
-      await apiRequest(`${API_BASE_URL}/devis/${quote.id}/convert-to-invoice`, {
+      const result = await apiRequest(`${API_BASE_URL}/devis/${quote.id}/convert-to-invoice`, {
         method: 'POST',
         body: JSON.stringify({}),
       })
-      setToast({ type: 'success', message: t.convertedOk })
-      loadCommercialData()
+      const invoice = result?.data
+      if (invoice?.id) {
+        // Conversion feeds the payment form directly, creating a clear
+        // quote -> invoice -> payment path for the operator.
+        setHighlightedInvoiceId(invoice.id)
+        setPaymentForm((current) => ({
+          ...current,
+          InvoiceId: String(invoice.id),
+          amount: String(invoice.amount || ''),
+          reference: invoice.reference ? `PAY-${invoice.reference}` : current.reference,
+        }))
+        setInvoiceSearch(invoice.reference || `INV-${invoice.id}`)
+      }
+      setToast({ type: 'success', message: invoice?.reference ? `${t.convertedOk}: ${invoice.reference}` : t.convertedOk })
+      await loadCommercialData()
     } catch (error) {
       setToast({ type: 'error', message: error.message || t.operationFailed })
     }
+  }
+
+  const preparePaymentForInvoice = (invoice) => {
+    // When an invoice has partial payments, default the form to the remaining
+    // balance rather than the original invoice total.
+    const remaining = Math.max(Number(invoice.amount || 0) - getPaidAmount(invoice), 0)
+    setHighlightedInvoiceId(invoice.id)
+    setPaymentForm((current) => ({
+      ...current,
+      InvoiceId: String(invoice.id),
+      amount: String(remaining || invoice.amount || ''),
+      reference: invoice.reference ? `PAY-${invoice.reference}` : current.reference,
+    }))
+    setInvoiceSearch(invoice.reference || `INV-${invoice.id}`)
   }
 
   const registerPayment = async (event) => {
@@ -249,6 +339,8 @@ function CommercialCycle() {
         reference: '',
         InvoiceId: '',
       })
+      setHighlightedInvoiceId(null)
+      setInvoiceSearch('')
       setToast({ type: 'success', message: t.paymentSaved })
       loadCommercialData()
     } catch (error) {
@@ -312,6 +404,7 @@ function CommercialCycle() {
 
           {canUseQuotes ? (
             <>
+              {canManageQuotes && (
               <form className="commercial-form" onSubmit={createQuote}>
                 <input
                   placeholder={t.reference}
@@ -367,6 +460,7 @@ function CommercialCycle() {
                 />
                 <button className="primary-action" type="submit">{t.createQuote}</button>
               </form>
+              )}
 
               {quotes.length ? (
                 <div className="table-wrap">
@@ -394,6 +488,8 @@ function CommercialCycle() {
                           <td>
                             {quote.Invoice ? (
                               <span className="muted-pill">{t.converted}</span>
+                            ) : !canConvertQuotes ? (
+                              <span className="muted-pill">{t.restricted}</span>
                             ) : (
                               <button
                                 className="small-action"
@@ -420,13 +516,26 @@ function CommercialCycle() {
 
         <section className="commercial-panel">
           <div className="panel-heading">
-            <h2>{t.invoices}</h2>
+            <div>
+              <h2>{t.invoices}</h2>
+              <p>{highlightedInvoiceId ? t.payableInvoice : t.recentInvoices}</p>
+            </div>
           </div>
           {canUseInvoices ? (
             invoices.length ? (
-              <div className="compact-list">
-                {invoices.slice(0, 8).map((invoice) => (
-                  <div className="compact-row" key={invoice.id}>
+              <>
+                <input
+                  className="invoice-search"
+                  placeholder={t.invoiceSearch}
+                  value={invoiceSearch}
+                  onChange={(e) => setInvoiceSearch(e.target.value)}
+                />
+                <div className="compact-list">
+                  {visibleInvoices.slice(0, 10).map((invoice) => (
+                  <div
+                    className={`compact-row ${String(invoice.id) === String(highlightedInvoiceId) ? 'highlighted' : ''}`}
+                    key={invoice.id}
+                  >
                     <div>
                       <strong>{invoice.reference || `INV-${invoice.id}`}</strong>
                       <span>{getName(invoice.Client)} - {getName(invoice.Project)}</span>
@@ -435,9 +544,15 @@ function CommercialCycle() {
                       <strong>{formatMoney(invoice.amount)}</strong>
                       <span className={`status-pill ${invoice.status?.toLowerCase()}`}>{invoice.status}</span>
                     </div>
+                    {canRegisterPayments && invoice.status !== 'Paid' && (
+                      <button className="small-action ghost-action" type="button" onClick={() => preparePaymentForInvoice(invoice)}>
+                        {t.payThisInvoice}
+                      </button>
+                    )}
                   </div>
                 ))}
-              </div>
+                </div>
+              </>
             ) : (
               <EmptyState title={t.noInvoices} message={t.workspaceSubtitle} />
             )
@@ -448,51 +563,92 @@ function CommercialCycle() {
 
         <section className="commercial-panel">
           <div className="panel-heading">
-            <h2>{t.payments}</h2>
+            <div>
+              <h2>{t.payments}</h2>
+              <p>{canRegisterPayments ? t.payableInvoice : t.recentPayments}</p>
+            </div>
           </div>
           {canUsePayments ? (
-            <form className="payment-form" onSubmit={registerPayment}>
-              <select
-                required
-                value={paymentForm.InvoiceId}
-                onChange={(e) => setPaymentForm({ ...paymentForm, InvoiceId: e.target.value })}
-              >
-                <option value="">{t.selectInvoice}</option>
-                {invoices.filter((invoice) => invoice.status !== 'Paid').slice(0, 200).map((invoice) => (
-                  <option key={invoice.id} value={invoice.id}>
-                    {invoice.reference || `INV-${invoice.id}`} - {formatMoney(invoice.amount)}
-                  </option>
-                ))}
-              </select>
-              <input
-                required
-                type="number"
-                min="1"
-                placeholder={t.amount}
-                value={paymentForm.amount}
-                onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
-              />
-              <input
-                required
-                type="date"
-                value={paymentForm.payment_date}
-                onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
-              />
-              <select
-                value={paymentForm.method}
-                onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
-              >
-                {['Bank Transfer', 'Card', 'Cash', 'Check', 'Mobile Payment'].map((method) => (
-                  <option key={method} value={method}>{method}</option>
-                ))}
-              </select>
-              <input
-                placeholder={t.reference}
-                value={paymentForm.reference}
-                onChange={(e) => setPaymentForm({ ...paymentForm, reference: e.target.value })}
-              />
-              <button className="primary-action" type="submit">{t.registerPayment}</button>
-            </form>
+            <>
+              {canRegisterPayments && (
+                <form className="payment-form" onSubmit={registerPayment}>
+                  <select
+                    required
+                    value={paymentForm.InvoiceId}
+                    onChange={(e) => {
+                      const invoice = invoices.find((item) => String(item.id) === e.target.value)
+                      setPaymentForm({
+                        ...paymentForm,
+                        InvoiceId: e.target.value,
+                        amount: invoice ? String(Math.max(Number(invoice.amount || 0) - getPaidAmount(invoice), 0) || invoice.amount || '') : paymentForm.amount,
+                      })
+                      setHighlightedInvoiceId(invoice?.id || null)
+                    }}
+                  >
+                    <option value="">{t.selectInvoice}</option>
+                    {payableInvoices.slice(0, 250).map((invoice) => (
+                      <option key={invoice.id} value={invoice.id}>
+                        {invoice.reference || `INV-${invoice.id}`} - {getName(invoice.Client)} - {formatMoney(Math.max(Number(invoice.amount || 0) - getPaidAmount(invoice), 0) || invoice.amount)}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedInvoice && (
+                    <div className="selected-invoice-card">
+                      <span>{selectedInvoice.reference || `INV-${selectedInvoice.id}`}</span>
+                      <strong>{formatMoney(selectedInvoice.amount)}</strong>
+                      <small>{getName(selectedInvoice.Client)} - {getName(selectedInvoice.Project)}</small>
+                    </div>
+                  )}
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    placeholder={t.amount}
+                    value={paymentForm.amount}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+                  />
+                  <input
+                    required
+                    type="date"
+                    value={paymentForm.payment_date}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, payment_date: e.target.value })}
+                  />
+                  <select
+                    value={paymentForm.method}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, method: e.target.value })}
+                  >
+                    {['Bank Transfer', 'Card', 'Cash', 'Check', 'Mobile Payment'].map((method) => (
+                      <option key={method} value={method}>{method}</option>
+                    ))}
+                  </select>
+                  <input
+                    placeholder={t.reference}
+                    value={paymentForm.reference}
+                    onChange={(e) => setPaymentForm({ ...paymentForm, reference: e.target.value })}
+                  />
+                  <button className="primary-action" type="submit">{t.registerPayment}</button>
+                </form>
+              )}
+
+              {payments.length ? (
+                <div className="compact-list payment-history">
+                  {payments.slice(0, 8).map((payment) => (
+                    <div className="compact-row" key={payment.id}>
+                      <div>
+                        <strong>{payment.reference || `PAY-${payment.id}`}</strong>
+                        <span>{payment.Invoice?.reference || `INV-${payment.InvoiceId}`} - {payment.method}</span>
+                      </div>
+                      <div>
+                        <strong>{formatMoney(payment.amount)}</strong>
+                        <span>{formatDate(payment.payment_date)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : !canRegisterPayments ? (
+                <EmptyState title={t.noInvoices} message={t.workspaceSubtitle} />
+              ) : null}
+            </>
           ) : (
             <div className="restricted-panel">{t.restricted}</div>
           )}

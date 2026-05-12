@@ -23,14 +23,14 @@ router.post(
 router.get(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   clientController.getAllClients
 );
 
 router.get(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER),
+  authorizeRoles(ROLES.ADMIN, ROLES.MANAGER, ROLES.FINANCE),
   clientController.getClientById
 );
 

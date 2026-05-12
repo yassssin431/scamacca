@@ -23,14 +23,14 @@ router.post(
 router.get(
   "/",
   verifyToken,
-  authorizeRoles(ROLES.FINANCE),
+  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
   expenseController.getAllExpenses
 );
 
 router.get(
   "/:id",
   verifyToken,
-  authorizeRoles(ROLES.FINANCE),
+  authorizeRoles(ROLES.ADMIN, ROLES.FINANCE),
   expenseController.getExpenseById
 );
 

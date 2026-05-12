@@ -11,6 +11,8 @@ export class ApiAccessError extends Error {
   }
 }
 
+// Some backend errors return JSON and some framework/network errors can return
+// plain text. This parser keeps callers from crashing on non-JSON responses.
 const parseResponseBody = async (response) => {
   const text = await response.text()
 
@@ -23,6 +25,8 @@ const parseResponseBody = async (response) => {
   }
 }
 
+// Backend list responses are not always shaped the same way. This normalizes
+// raw arrays and { data: [...] } envelopes into one predictable value.
 export const normalizeApiData = (data, fallback = []) => {
   if (Array.isArray(data)) return data
   if (data && typeof data === 'object' && 'data' in data) {
@@ -32,6 +36,8 @@ export const normalizeApiData = (data, fallback = []) => {
   return data
 }
 
+// Central fetch wrapper: always attaches the JWT and returns a safe object
+// instead of throwing on network failure. Mutating calls use apiRequest below.
 export const authFetch = async (url, options = {}) => {
   const token = getToken()
 
@@ -64,6 +70,8 @@ export const authFetch = async (url, options = {}) => {
   }
 }
 
+// Strict request helper for create/update/delete actions. It throws typed
+// errors so pages can show clean toast messages.
 export const apiRequest = async (url, options = {}) => {
   const response = await authFetch(url, options)
 
@@ -83,6 +91,8 @@ export const readData = async (url, fallback = []) => {
   return normalizeApiData(data, fallback)
 }
 
+// Optional reads are used for role-dependent sections. A 401/403 becomes the
+// fallback value, letting the page continue with partial data instead of blanking.
 export const readOptionalData = async (url, fallback = []) => {
   const response = await authFetch(url)
 

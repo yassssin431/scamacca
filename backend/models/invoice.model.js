@@ -26,6 +26,11 @@ const Invoice = sequelize.define(
     },
 
     due_date: { type: DataTypes.DATE },
+
+    DevisId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
   },
   {
     indexes: [
@@ -33,11 +38,11 @@ const Invoice = sequelize.define(
       { fields: ["status"] },
       { fields: ["ProjectId"] },
       { fields: ["ClientId"] },
+      { fields: ["DevisId"] },
     ],
   }
 );
 
 module.exports = Invoice;
-
 
 

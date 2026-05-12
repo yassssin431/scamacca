@@ -142,6 +142,9 @@ function Dashboard() {
   const language = localStorage.getItem('language') || 'English'
   const t = translations[language] || translations.English
   const role = getCurrentUserRole()
+
+  // Dashboard cards are role-aware: every dataset is requested only when the
+  // current user is allowed to read it by frontend/backend RBAC.
   const canViewClients = canAccessResource('clients', role)
   const canViewProjects = canAccessResource('projects', role)
   const canViewInvoices = canAccessResource('invoices', role)
@@ -172,6 +175,8 @@ function Dashboard() {
           expensesData,
           salariesData,
         ] = await Promise.all([
+          // The summary endpoint is preferred for KPIs; direct datasets are a
+          // fallback for sections that still need detailed rows.
           canViewClients ? readOptionalData(`${API_BASE_URL}/clients`) : Promise.resolve([]),
           canViewProjects ? readOptionalData(`${API_BASE_URL}/projects`) : Promise.resolve([]),
           canViewInvoices ? readOptionalData(`${API_BASE_URL}/invoices`) : Promise.resolve([]),
